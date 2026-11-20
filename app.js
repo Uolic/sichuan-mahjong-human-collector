@@ -10,11 +10,19 @@ const state = {
   startedAt: 0,
   taskStartedAt: 0,
   answers: [],
+  isAdvancing: false,
 };
 
 const $ = (id) => document.getElementById(id);
 const suitNames = { w: "万", t: "条", b: "筒" };
 const meldNames = { peng: "碰", gang: "杠", chi: "吃" };
+const chineseNumbers = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+const playerPositions = [
+  { player: 2, position: "top", label: "对家", avatar: "对" },
+  { player: 1, position: "right", label: "右家", avatar: "右" },
+  { player: 3, position: "left", label: "左家", avatar: "左" },
+  { player: 0, position: "self", label: "我", avatar: "我" },
+];
 
 function makeId(prefix) {
   const bytes = new Uint8Array(6);
@@ -24,6 +32,60 @@ function makeId(prefix) {
 
 function tileLabel(tile) {
   return `${tile[0]}${suitNames[tile[1]] || tile[1]}`;
+}
+
+function miniTile(tile, className = "") {
+  return `<span class="mini-tile suit-${tile[1]} ${className}" title="${tileLabel(tile)}"><b>${tile[0]}</b><small>${suitNames[tile[1]] || tile[1]}</small></span>`;
+}
+
+function tileFace(tile) {
+  const number = Number(tile[0]);
+  const suit = tile[1];
+  if (suit === "w") {
+    return `
+      <span class="face-wan">
+        <b>${chineseNumbers[number]}</b>
+        <small>萬</small>
+      </span>
+    `;
+  }
+  if (suit === "t") {
+    const bars = Array.from({ length: number }, () => "<i></i>").join("");
+    return `
+      <span class="face-tiao">
+        <b>${number}</b>
+        <small>索</small>
+        <span class="bamboo-bars" aria-hidden="true">${bars}</span>
+      </span>
+    `;
+  }
+  const dots = Array.from({ length: number }, () => "<i></i>").join("");
+  return `<span class="face-dots count-${number}" aria-hidden="true">${dots}</span>`;
+}
+
+function playerByIndex(task, index) {
+  return task.players.find((player) => player.player === index);
+}
+
+function renderMelds(player, compact = false) {
+  return player.melds.map((meld) => `
+    <span class="meld-chip">
+      <b>${meldNames[meld.kind] || meld.kind}</b>
+      ${meld.tiles.map((tile) => compact ? `<span class="meld-mini">${tile[0]}</span>` : miniTile(tile)).join("")}
+    </span>
+  `).join("");
+}
+
+function renderRiver(player, position, label) {
+  const discards = player.discards.length
+    ? player.discards.map((tile) => miniTile(tile)).join("")
+    : `<span class="river-empty">尚未出牌</span>`;
+  return `
+    <div class="river river-${position}">
+      <span class="river-label">${label} · 牌河 ${player.discards.length}</span>
+      <div class="river-tiles">${discards}</div>
+    </div>
+  `;
 }
 
 function shuffle(array) {
@@ -38,47 +100,72 @@ function shuffle(array) {
 function show(screenId) {
   document.querySelectorAll(".screen").forEach((node) => node.classList.remove("active"));
   $(screenId).classList.add("active");
+  document.body.dataset.screen = screenId;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function renderMeta(task) {
   const ting = task.tingTiles && task.tingTiles.length
-    ? `可听：${task.tingTiles.map(tileLabel).join("、")}`
+    ? `可听 ${task.tingTiles.length} 种`
     : "尚未听牌";
+  const tingDetail = task.tingTiles && task.tingTiles.length
+    ? task.tingTiles.map(tileLabel).join("、")
+    : ting;
   $("meta").innerHTML = `
-    <span class="chip">定缺：${task.missingSuitName || "未定"}</span>
-    <span class="chip">向听：${task.shanten}</span>
-    <span class="chip">剩余牌墙：${task.wallRemaining}</span>
-    <span class="chip">${ting}</span>
+    <span class="stat missing"><span>定缺</span><strong>${task.missingSuitName || "未定"}</strong></span>
+    <span class="stat"><span>向听</span><b>${task.shanten}</b></span>
+    <span class="stat" title="${tingDetail}"><span>听牌</span><b>${ting}</b></span>
+    <span class="stat"><span>桌面</span><b>${task.players.reduce((sum, player) => sum + player.discards.length, 0)} 张</b></span>
   `;
 }
 
 function renderTable(task) {
-  $("tableInfo").innerHTML = task.players.map((player) => {
-    const melds = player.melds.length
-      ? player.melds.map((meld) => `<span class="meld">${meldNames[meld.kind] || meld.kind} ${meld.tiles.map(tileLabel).join(" ")}</span>`).join("")
-      : "无副露";
-    const discards = player.discards.length
-      ? player.discards.map(tileLabel).join(" ")
-      : "没有弃牌";
+  const seats = playerPositions.map(({ player, position, label, avatar }) => {
+    const data = playerByIndex(task, player);
+    if (!data) return "";
+    const meldCount = data.melds.length
+      ? `<span class="seat-meld-count">${data.melds.length} 副露</span>`
+      : "";
     return `
-      <div class="player-row">
-        <div class="player-name">${player.player === 0 ? "我" : "P" + player.player}<br><small>${player.score} 分</small></div>
-        <div><div>${melds}</div><div>弃牌：${discards}</div></div>
+      <div class="seat seat-${position}${player === 0 ? " self" : ""}">
+        <span class="seat-avatar">${avatar}</span>
+        <span class="seat-copy"><b>${label}</b><small>${data.score} 分</small></span>
+        ${meldCount}
       </div>
     `;
   }).join("");
+
+  const rivers = [
+    renderRiver(playerByIndex(task, 2), "top", "对家"),
+    renderRiver(playerByIndex(task, 1), "right", "右家"),
+    renderRiver(playerByIndex(task, 3), "left", "左家"),
+    renderRiver(playerByIndex(task, 0), "bottom", "我"),
+  ].join("");
+
+  $("tableInfo").innerHTML = `
+    ${seats}
+    <div class="table-mark" aria-hidden="true">川<small>血战到底</small></div>
+    <div class="wall-stack" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
+    ${rivers}
+  `;
+
+  const me = playerByIndex(task, 0);
+  $("myMelds").innerHTML = me && me.melds.length ? renderMelds(me, true) : "";
 }
 
 function renderQuestion() {
   const task = state.tasks[state.index];
   state.taskStartedAt = performance.now();
   state.selected = [];
-  $("progressTitle").textContent = `第 ${state.index + 1} / ${state.tasks.length} 题`;
+  state.isAdvancing = false;
+  $("progressTitle").textContent = `第 ${state.index + 1} / ${state.tasks.length} 手`;
   $("progressBar").style.width = `${((state.index + 1) / state.tasks.length) * 100}%`;
+  $("wallRemaining").textContent = task.wallRemaining;
   renderMeta(task);
   renderTable(task);
-  $("selectedLabel").textContent = "请选择一张";
+  $("selectedLabel").textContent = "点一张手牌";
   $("confirm").disabled = true;
   const counts = {};
   task.hand.forEach((tile) => { counts[tile] = (counts[tile] || 0) + 1; });
@@ -86,25 +173,48 @@ function renderQuestion() {
   $("hand").innerHTML = task.hand.map((tile, index) => {
     used[tile] = (used[tile] || 0) + 1;
     const suit = suitNames[tile[1]] || tile[1];
-    const duplicate = counts[tile] > 1 ? ` · 第 ${used[tile]} 张` : "";
-    const caption = `${suit}${duplicate}`;
+    const duplicate = counts[tile] > 1 ? `<span class="tile-count">${used[tile]}</span>` : "";
     const missing = tile[1] === task.missingSuit ? " missing" : "";
-    return `<button class="tile${missing}" data-index="${index}" data-tile="${tile}">${tile[0]}<small>${caption}</small></button>`;
+    const order = counts[tile] > 1 ? `，第${used[tile]}张` : "";
+    const aria = `${tileLabel(tile)}${order}${missing ? "，定缺牌" : ""}`;
+    return `
+      <button class="mahjong-tile${missing}" data-index="${index}" data-tile="${tile}" aria-label="${aria}" aria-pressed="false">
+        <span class="tile-face">${tileFace(tile)}</span>
+        <span class="tile-bottom">${suit}${duplicate}</span>
+      </button>
+    `;
   }).join("");
-  document.querySelectorAll(".tile").forEach((button) => {
+  document.querySelectorAll(".mahjong-tile").forEach((button) => {
     button.addEventListener("click", () => selectTile(button));
   });
 }
 
 function selectTile(button) {
-  document.querySelectorAll(".tile").forEach((node) => node.classList.remove("selected"));
+  if (state.isAdvancing) return;
+  document.querySelectorAll(".mahjong-tile").forEach((node) => {
+    node.classList.remove("selected");
+    node.setAttribute("aria-pressed", "false");
+  });
   button.classList.add("selected");
+  button.setAttribute("aria-pressed", "true");
+  navigator.vibrate?.(12);
   state.selected = [button.dataset.tile];
-  $("selectedLabel").textContent = `已选：${tileLabel(button.dataset.tile)}`;
+  const isMissing = state.tasks[state.index].missingSuit === button.dataset.tile[1];
+  $("selectedLabel").textContent = `已选 ${tileLabel(button.dataset.tile)}${isMissing ? " · 定缺" : ""}`;
   $("confirm").disabled = false;
 }
 
-function recordAnswer(tile, skipped = false) {
+async function recordAnswer(tile, skipped = false) {
+  if (state.isAdvancing) return;
+  state.isAdvancing = true;
+  $("confirm").disabled = true;
+  $("skip").disabled = true;
+  const selectedTile = document.querySelector(".mahjong-tile.selected");
+  if (selectedTile && !skipped) {
+    navigator.vibrate?.([16, 24, 28]);
+    selectedTile.classList.add("discarding");
+    await new Promise((resolve) => setTimeout(resolve, 220));
+  }
   const task = state.tasks[state.index];
   state.answers.push({
     taskId: task.id,
@@ -114,7 +224,10 @@ function recordAnswer(tile, skipped = false) {
   });
   state.index += 1;
   if (state.index >= state.tasks.length) finish();
-  else renderQuestion();
+  else {
+    $("skip").disabled = false;
+    renderQuestion();
+  }
 }
 
 async function finish() {

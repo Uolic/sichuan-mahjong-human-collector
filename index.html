@@ -8,17 +8,29 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>四川麻将出牌采集</title>
   <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main id="app">
     <section id="welcome" class="screen active">
-      <div class="hero">
-        <span class="eyebrow">匿名数据采集</span>
-        <h1>帮我选一张要打的牌</h1>
-        <p>不用打完整麻将。每次只显示一手牌和桌面信息，点你认为应该打出的牌。</p>
+      <div class="hero welcome-hero">
+        <div class="hero-seal">川</div>
+        <span class="eyebrow">匿名真人出牌采集</span>
+        <h1>坐上来，<br>帮我打一手牌</h1>
+        <p>像真打麻将一样看牌河、副露和手牌。每轮 20 手，点一张你认为该打出的牌。</p>
+        <div class="hero-tiles" aria-hidden="true">
+          <span class="hero-tile red">五<small>萬</small></span>
+          <span class="hero-tile green">七<small>索</small></span>
+          <span class="hero-tile blue dots-mini">•••<small>筒</small></span>
+        </div>
       </div>
-      <div class="card">
+      <div class="card welcome-card">
+        <div class="quick-facts">
+          <span><b>20</b> 手结束</span>
+          <span><b>0</b> 安装</span>
+          <span><b>匿名</b> 不登录</span>
+        </div>
         <label class="field">
           <span>你的麻将经验</span>
           <select id="experience">
@@ -31,45 +43,59 @@
           <input type="checkbox" id="consent">
           <span>我知道只记录手牌、选择、思考时间和对局信息；不会收集姓名、手机号或位置。</span>
         </label>
-        <button id="start" class="primary" disabled>开始 20 题</button>
+        <button id="start" class="primary" disabled>入座，开始 20 手</button>
         <p class="privacy">匿名编号：<b id="collectorId"></b></p>
       </div>
     </section>
 
     <section id="quiz" class="screen">
-      <header class="topbar">
-        <div>
-          <span class="eyebrow">出牌采集</span>
-          <h2 id="progressTitle">第 1 / 20 题</h2>
+      <header class="game-hud">
+        <button id="exit" class="icon-button" aria-label="退出本轮">×</button>
+        <div class="round-copy">
+          <span>川麻 · 血战到底</span>
+          <h2 id="progressTitle">第 1 / 20 手</h2>
         </div>
-        <button id="exit" class="ghost">退出</button>
+        <div class="wall-counter" title="剩余牌墙">
+          <b id="wallRemaining">--</b>
+          <span>余牌</span>
+        </div>
       </header>
       <div class="progress"><i id="progressBar"></i></div>
       <div class="info-row" id="meta"></div>
-      <div class="card hand-card">
-        <div class="section-title">
-          <h3>你的手牌</h3>
-          <span id="selectedLabel">请选择一张</span>
+
+      <section class="table-shell" aria-label="麻将牌桌">
+        <div class="table-rim">
+          <div class="table-felt">
+            <div class="felt-glow" aria-hidden="true"></div>
+            <div id="tableInfo" class="table-players"></div>
+          </div>
         </div>
-        <div id="hand" class="hand"></div>
-      </div>
-      <div class="card">
-        <h3>桌面公开信息</h3>
-        <div id="tableInfo" class="table-info"></div>
-      </div>
-      <div class="actions">
-        <button id="skip" class="ghost">这题不确定，跳过</button>
-        <button id="confirm" class="primary" disabled>确认打这张</button>
-      </div>
+      </section>
+
+      <section class="hand-dock">
+        <div class="turn-line">
+          <div class="turn-copy">
+            <span class="turn-dot"></span>
+            <b>轮到你出牌</b>
+          </div>
+          <span id="selectedLabel" aria-live="polite">点一张手牌</span>
+        </div>
+        <div id="myMelds" class="my-melds"></div>
+        <div id="hand" class="hand" aria-label="你的手牌"></div>
+        <div class="actions">
+          <button id="skip" class="ghost">这手不确定</button>
+          <button id="confirm" class="primary discard-button" disabled>打出这张</button>
+        </div>
+      </section>
     </section>
 
     <section id="done" class="screen">
-      <div class="hero small">
+      <div class="hero small done-hero">
         <span class="eyebrow">采集完成</span>
-        <h1>谢谢你帮忙</h1>
+        <h1>这一桌，打完了</h1>
         <p id="doneText">正在提交匿名数据……</p>
       </div>
-      <div class="card">
+      <div class="card done-card">
         <div class="summary" id="summary"></div>
         <button id="download" class="primary hidden">下载并分享结果</button>
         <button id="again" class="ghost">再答一轮</button>
