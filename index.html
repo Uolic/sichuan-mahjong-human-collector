@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f5f49">
+  <title>四川麻将出牌采集</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app">
+    <section id="welcome" class="screen active">
+      <div class="hero">
+        <span class="eyebrow">匿名数据采集</span>
+        <h1>帮我选一张要打的牌</h1>
+        <p>不用打完整麻将。每次只显示一手牌和桌面信息，点你认为应该打出的牌。</p>
+      </div>
+      <div class="card">
+        <label class="field">
+          <span>你的麻将经验</span>
+          <select id="experience">
+            <option value="beginner">刚开始学</option>
+            <option value="intermediate" selected>会打，但不熟练</option>
+            <option value="advanced">经常打、比较熟练</option>
+          </select>
+        </label>
+        <label class="consent">
+          <input type="checkbox" id="consent">
+          <span>我知道只记录手牌、选择、思考时间和对局信息；不会收集姓名、手机号或位置。</span>
+        </label>
+        <button id="start" class="primary" disabled>开始 20 题</button>
+        <p class="privacy">匿名编号：<b id="collectorId"></b></p>
+      </div>
+    </section>
+
+    <section id="quiz" class="screen">
+      <header class="topbar">
+        <div>
+          <span class="eyebrow">出牌采集</span>
+          <h2 id="progressTitle">第 1 / 20 题</h2>
+        </div>
+        <button id="exit" class="ghost">退出</button>
+      </header>
+      <div class="progress"><i id="progressBar"></i></div>
+      <div class="info-row" id="meta"></div>
+      <div class="card hand-card">
+        <div class="section-title">
+          <h3>你的手牌</h3>
+          <span id="selectedLabel">请选择一张</span>
+        </div>
+        <div id="hand" class="hand"></div>
+      </div>
+      <div class="card">
+        <h3>桌面公开信息</h3>
+        <div id="tableInfo" class="table-info"></div>
+      </div>
+      <div class="actions">
+        <button id="skip" class="ghost">这题不确定，跳过</button>
+        <button id="confirm" class="primary" disabled>确认打这张</button>
+      </div>
+    </section>
+
+    <section id="done" class="screen">
+      <div class="hero small">
+        <span class="eyebrow">采集完成</span>
+        <h1>谢谢你帮忙</h1>
+        <p id="doneText">正在提交匿名数据……</p>
+      </div>
+      <div class="card">
+        <div class="summary" id="summary"></div>
+        <button id="download" class="primary hidden">下载并分享结果</button>
+        <button id="again" class="ghost">再答一轮</button>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "四川麻将出牌采集",
+  "short_name": "出牌采集",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#eef5f0",
+  "theme_color": "#0f5f49",
+  "lang": "zh-CN"
+}
