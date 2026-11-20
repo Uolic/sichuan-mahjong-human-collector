@@ -2,6 +2,8 @@
 
 这是一个手机优先的匿名出牌采集页面。参与者不需要打完整麻将，只需要根据当前手牌和桌面公开信息选择一张要打出的牌。每一轮随机抽取 20 题。
 
+在线页面：https://uolic.github.io/sichuan-mahjong-human-collector/
+
 ## 在线使用
 
 GitHub Pages 部署后，直接打开仓库公开的 Pages 地址即可参与。
