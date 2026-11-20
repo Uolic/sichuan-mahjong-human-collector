@@ -51,3 +51,7 @@ python -m http.server 8765
 ## 部署
 
 仓库包含 GitHub Pages 工作流。进入仓库的 **Settings → Pages**，将 **Source** 设置为 **GitHub Actions**。推送到 `main` 后，工作流会发布当前静态页面。
+
+## 许可证
+
+本项目采用 MIT License，详见 `LICENSE`。
