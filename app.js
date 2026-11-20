@@ -71,7 +71,9 @@ function renderMelds(player, compact = false) {
   return player.melds.map((meld) => `
     <span class="meld-chip">
       <b>${meldNames[meld.kind] || meld.kind}</b>
-      ${meld.tiles.map((tile) => compact ? `<span class="meld-mini">${tile[0]}</span>` : miniTile(tile)).join("")}
+      ${meld.tiles.map((tile) => compact
+        ? `<span class="meld-mini suit-${tile[1]}" title="${tileLabel(tile)}">${tile[0]}</span>`
+        : miniTile(tile)).join("")}
     </span>
   `).join("");
 }
@@ -80,9 +82,18 @@ function renderRiver(player, position, label) {
   const discards = player.discards.length
     ? player.discards.map((tile) => miniTile(tile)).join("")
     : `<span class="river-empty">尚未出牌</span>`;
+  const melds = player.melds.length
+    ? `<div class="river-melds">${player.melds.map((meld) => `
+        <span class="river-meld">
+          <b>${meldNames[meld.kind] || meld.kind}</b>
+          ${meld.tiles.map((tile) => miniTile(tile)).join("")}
+        </span>
+      `).join("")}</div>`
+    : "";
   return `
     <div class="river river-${position}">
       <span class="river-label">${label} · 牌河 ${player.discards.length}</span>
+      ${melds}
       <div class="river-tiles">${discards}</div>
     </div>
   `;
@@ -105,9 +116,10 @@ function show(screenId) {
 }
 
 function renderMeta(task) {
+  const isTenpai = task.shanten <= 0;
   const ting = task.tingTiles && task.tingTiles.length
     ? `可听 ${task.tingTiles.length} 种`
-    : "尚未听牌";
+    : isTenpai ? "已听牌" : "尚未听牌";
   const tingDetail = task.tingTiles && task.tingTiles.length
     ? task.tingTiles.map(tileLabel).join("、")
     : ting;
