@@ -1,5 +1,5 @@
 const SESSION_SIZE = 20;
-const TASK_ASSET_VERSION = "20261121-5";
+const TASK_ASSET_VERSION = "20261121-6";
 
 const state = {
   tasks: [],
@@ -21,7 +21,7 @@ const playerPositions = [
   { player: 2, position: "top", label: "对家", avatar: "对" },
   { player: 1, position: "right", label: "右家", avatar: "右" },
   { player: 3, position: "left", label: "左家", avatar: "左" },
-  { player: 0, position: "self", label: "我", avatar: "你" },
+  { player: 0, position: "self", label: "我", avatar: "我" },
 ];
 let taskPoolPromise = null;
 let taskPoolCount = 0;
@@ -127,10 +127,10 @@ function renderTable(task) {
     const data = playerByIndex(task, player);
     if (!data) return "";
     return `
-      <div class="seat seat-${position}${player === 0 ? " self" : ""}">
+      <div class="seat seat-${position}${player === 0 ? " self" : ""}"
+        aria-label="${label}，${data.score} 分${data.melds.length ? `，${data.melds.length} 副露` : ""}">
         <span class="seat-avatar">${avatar}</span>
         <span class="seat-copy">
-          <b>${label}</b>
           <small>${data.score} 分${data.melds.length ? ` · ${data.melds.length}副露` : ""}</small>
         </span>
       </div>
@@ -192,18 +192,54 @@ function enableHandSorting() {
   let drag = null;
   let suppressClickUntil = 0;
 
-  const endDrag = (event) => {
-    if (!drag || (event?.pointerId != null && event.pointerId !== drag.pointerId)) return;
-    drag.tile.classList.remove("dragging");
-    hand.classList.remove("sorting");
-    if (drag.moved) {
-      suppressClickUntil = performance.now() + 280;
-      navigator.vibrate?.(18);
-    }
-    drag = null;
+  const clearDocumentListeners = () => {
     document.removeEventListener("pointermove", moveTile);
     document.removeEventListener("pointerup", endDrag);
     document.removeEventListener("pointercancel", endDrag);
+  };
+
+  const finishDrag = (moved) => {
+    if (!drag) return;
+    drag.tile.classList.remove("dragging");
+    hand.classList.remove("sorting");
+    if (drag.placeholder?.parentNode) drag.placeholder.replaceWith(drag.tile);
+    for (const property of ["position", "left", "top", "width", "height", "z-index", "margin", "transform"]) {
+      drag.tile.style.removeProperty(property);
+    }
+    if (moved) {
+      suppressClickUntil = performance.now() + 300;
+      navigator.vibrate?.(18);
+    }
+    drag = null;
+    clearDocumentListeners();
+  };
+
+  const endDrag = (event) => {
+    if (!drag || (event?.pointerId != null && event.pointerId !== drag.pointerId)) return;
+    finishDrag(drag.moved);
+  };
+
+  const beginVisualDrag = (event) => {
+    const rect = drag.tile.getBoundingClientRect();
+    drag.offsetX = event.clientX - rect.left;
+    drag.offsetY = event.clientY - rect.top;
+    drag.placeholder = document.createElement("span");
+    drag.placeholder.className = "tile-placeholder";
+    drag.placeholder.setAttribute("aria-hidden", "true");
+    drag.tile.before(drag.placeholder);
+    document.body.appendChild(drag.tile);
+    Object.assign(drag.tile.style, {
+      position: "fixed",
+      left: `${rect.left}px`,
+      top: `${rect.top}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
+      margin: "0",
+      zIndex: "100",
+    });
+    drag.tile.classList.add("dragging");
+    hand.classList.add("sorting");
+    navigator.vibrate?.(10);
   };
 
   const moveTile = (event) => {
@@ -211,13 +247,13 @@ function enableHandSorting() {
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
     if (!drag.moved && Math.hypot(dx, dy) < 7) return;
+    event.preventDefault();
     if (!drag.moved) {
       drag.moved = true;
-      hand.classList.add("sorting");
-      drag.tile.classList.add("dragging");
-      navigator.vibrate?.(10);
+      beginVisualDrag(event);
     }
-    event.preventDefault();
+    drag.tile.style.left = `${event.clientX - drag.offsetX}px`;
+    drag.tile.style.top = `${event.clientY - drag.offsetY}px`;
 
     const candidates = document.elementsFromPoint(event.clientX, event.clientY);
     const target = candidates.find((element) => {
@@ -227,11 +263,10 @@ function enableHandSorting() {
     if (!target) return;
 
     const rect = target.getBoundingClientRect();
-    const placeAfter = event.clientY > rect.top + rect.height * 0.62
-      || (event.clientY >= rect.top && event.clientY <= rect.bottom
-        && event.clientX > rect.left + rect.width / 2);
-    if (placeAfter) target.after(drag.tile);
-    else target.before(drag.tile);
+    if (event.clientY < rect.top) target.before(drag.placeholder);
+    else if (event.clientY > rect.bottom) target.after(drag.placeholder);
+    else if (event.clientX > rect.left + rect.width / 2) target.after(drag.placeholder);
+    else target.before(drag.placeholder);
   };
 
   hand.querySelectorAll(".mahjong-tile").forEach((button) => {
