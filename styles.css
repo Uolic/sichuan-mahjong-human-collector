@@ -886,30 +886,43 @@ select {
   padding: 8px 2px 3px;
   touch-action: pan-y;
 }
-.hand-analysis {
+.play-guidance {
   display: grid;
-  grid-template-columns: .75fr 1fr 1.45fr;
-  gap: 6px;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 7px;
   margin: 0 2px 7px;
+  padding: 7px;
+  border: 1px solid #d9ceba;
+  border-radius: 11px;
+  background: rgba(247, 240, 224, .78);
 }
-.analysis-cell {
+.guide-main,
+.guide-plan {
   min-width: 0;
-  padding: 7px 8px;
-  border: 1px solid #ded3bf;
-  border-radius: 10px;
-  background: rgba(244, 238, 222, .72);
+  padding: 6px 8px;
+  border-radius: 8px;
 }
-.analysis-cell span { display: block; color: var(--muted); font-size: 8px; }
-.analysis-cell b {
+.guide-main {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  background: #e7f1e9;
+  text-align: center;
+}
+.guide-main span,
+.guide-plan span { color: var(--muted); font-size: 8px; }
+.guide-main strong { margin-top: 1px; color: var(--felt-deep); font-size: 15px; }
+.guide-plan { background: rgba(255, 255, 255, .56); }
+.guide-plan b {
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
   overflow: hidden;
   color: var(--ink);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.analysis-cell em {
+.guide-plan em {
   display: block;
   margin-top: 2px;
   overflow: hidden;
@@ -918,6 +931,11 @@ select {
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.play-guidance.error {
+  grid-template-columns: 1fr;
+  border-color: rgba(180, 55, 50, .45);
+  background: #fff1ed;
 }
 .hand::before {
   content: "";
@@ -1132,6 +1150,29 @@ select {
   padding: calc(72px + env(safe-area-inset-top)) 14px 18px;
   background: linear-gradient(180deg, rgba(3, 24, 19, .04), rgba(3, 24, 19, .58));
   backdrop-filter: none;
+}
+.ai-inline {
+  margin: 0 2px 7px;
+}
+.ai-inline .action-card {
+  display: grid;
+  gap: 6px;
+  max-height: none;
+  overflow: visible;
+  padding: 8px;
+  border-radius: 12px;
+  box-shadow: 0 5px 16px rgba(45, 33, 18, .12);
+}
+.ai-inline .action-now {
+  min-height: 54px;
+  margin: 0;
+  padding: 6px 8px;
+}
+.ai-inline .action-list { display: none; }
+.ai-inline .primary {
+  min-height: 38px;
+  border-radius: 10px;
+  font-size: 12px;
 }
 .action-card {
   width: min(520px, 100%);

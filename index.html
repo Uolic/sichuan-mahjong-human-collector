@@ -9,7 +9,7 @@
   <title>四川麻将出牌采集</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20261121-18">
+  <link rel="stylesheet" href="styles.css?v=20261121-19">
 </head>
 <body>
   <main id="app">
@@ -20,9 +20,9 @@
         <h1>坐上来，<br>帮我打一手牌</h1>
         <p>从亲自定缺开始，连续打完整局。每次出牌都会真正改变牌河、副露和后续手牌。</p>
         <div class="hero-tiles" aria-hidden="true">
-          <img class="hero-tile" src="tiles_cn/w5.jpg?v=20261121-18" alt="">
-          <img class="hero-tile" src="tiles_cn/t7.jpg?v=20261121-18" alt="">
-          <img class="hero-tile" src="tiles_cn/b5.jpg?v=20261121-18" alt="">
+          <img class="hero-tile" src="tiles_cn/w5.jpg?v=20261121-19" alt="">
+          <img class="hero-tile" src="tiles_cn/t7.jpg?v=20261121-19" alt="">
+          <img class="hero-tile" src="tiles_cn/b5.jpg?v=20261121-19" alt="">
         </div>
       </div>
       <div class="card welcome-card">
@@ -110,8 +110,14 @@
           </div>
         </div>
         <div class="info-row" id="meta"></div>
-        <div id="gameContext" class="game-context" aria-live="polite"></div>
-        <div id="handAnalysis" class="hand-analysis" aria-live="polite"></div>
+        <div id="playGuidance" class="play-guidance" aria-live="polite"></div>
+        <div id="aiTurnOverlay" class="ai-inline hidden" aria-live="polite">
+          <div class="action-card">
+            <div id="aiActionNow" class="action-now"></div>
+            <div id="aiActionList" class="action-list"></div>
+            <button id="continueTurn" class="primary" type="button" disabled>看清了，继续</button>
+          </div>
+        </div>
         <div id="myMelds" class="my-melds"></div>
         <div id="hand" class="hand" aria-label="你的手牌"></div>
         <p class="play-hint">点牌选择，拖动可整理顺序 · 选中后显示完整牌名</p>
@@ -120,16 +126,6 @@
           <button id="confirm" class="primary discard-button" disabled>打出这张</button>
         </div>
       </section>
-
-      <div id="aiTurnOverlay" class="action-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="aiTurnTitle">
-        <div class="action-card">
-          <span class="eyebrow">AI 行动回放</span>
-          <h3 id="aiTurnTitle">牌桌行动回放</h3>
-          <div id="aiActionNow" class="action-now" aria-live="assertive"></div>
-          <div id="aiActionList" class="action-list" aria-live="polite"></div>
-          <button id="continueTurn" class="primary" type="button" disabled>看清了，继续</button>
-        </div>
-      </div>
 
       <div id="reactionOverlay" class="action-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="reactionTitle">
         <div class="action-card reaction-card">
@@ -166,6 +162,6 @@
       <span id="loadingText">第一次进入需要准备牌桌，请稍等几秒。</span>
     </div>
   </div>
-  <script src="app.js?v=20261121-18"></script>
+  <script src="app.js?v=20261121-19"></script>
 </body>
 </html>

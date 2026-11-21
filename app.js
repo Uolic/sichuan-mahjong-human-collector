@@ -1,5 +1,5 @@
 const STATIC_MIN_GAME_SIZE = 6;
-const TASK_ASSET_VERSION = "20261121-18";
+const TASK_ASSET_VERSION = "20261121-19";
 
 const state = {
   tasks: [],
@@ -226,23 +226,6 @@ function actionSummary(action) {
   return `${action.playerLabel || `P${action.player}`}${verb}${tile}`;
 }
 
-function renderGameContext(task) {
-  if (state.dynamic) {
-    const recent = task.recentActions && task.recentActions.length
-      ? `刚刚：${task.recentActions.slice(-3).map(actionSummary).join(" · ")}`
-      : "这是本局开始后的第一个决策";
-    $("gameContext").innerHTML = `
-      <strong>定缺 ${task.missingSuitName || "未定"}</strong>
-      <span>本局第 ${task.turn || 1} 手 · ${recent}</span>
-    `;
-    return;
-  }
-  $("gameContext").innerHTML = `
-    <strong>牌谱演示 · 定缺 ${task.missingSuitName || "未定"}</strong>
-    <span>同一局连续关键手；当前为已录制牌谱，选择不会改写下一手。</span>
-  `;
-}
-
 function renderMeta(task) {
   const isTenpai = task.shanten <= 0;
   const ting = task.tingTiles && task.tingTiles.length
@@ -253,41 +236,32 @@ function renderMeta(task) {
     : ting;
   $("meta").innerHTML = `
     <span class="stat missing"><span>定缺</span><strong>${task.missingSuitName || "未定"}</strong></span>
+    <span class="stat"><span>牌墙剩余</span><b>${task.wallRemaining} 张</b></span>
     <span class="stat"><span>向听</span><b>${task.shanten}</b></span>
     <span class="stat" title="${tingDetail}"><span>听牌</span><b>${ting}</b></span>
-    <span class="stat"><span>桌面</span><b>${task.players.reduce((sum, player) => sum + player.discards.length, 0)} 张</b></span>
-    <span class="stat"><span>牌墙剩余</span><b>${task.wallRemaining} 张</b></span>
-    <span class="stat"><span>手牌结构</span><b>${task.handCount ?? task.hand.length} + ${task.meldCount ?? 0}副露</b></span>
   `;
 }
 
-function renderHandAnalysis(task) {
-  const me = playerByIndex(task, 0);
-  const meldCount = task.meldCount ?? me?.melds?.length ?? 0;
-  const structure = `${task.handCount ?? task.hand.length}张暗手${meldCount ? ` + ${meldCount}副露` : ""}`;
-  if (task.fanOptions && task.fanOptions.length) {
-    const options = task.fanOptions.slice(0, 3).map((item) =>
-      `${tileLabel(item.tile)} ${item.pattern}${item.fan}番×${item.multiplier}`
-    ).join("、");
-    $("handAnalysis").innerHTML = `
-      <div class="analysis-cell"><span>牌墙剩余</span><b>${task.wallRemaining} 张</b></div>
-      <div class="analysis-cell"><span>手牌结构</span><b>${structure}</b></div>
-      <div class="analysis-cell"><span>可胡番型</span><b>${options}</b><em>${task.fanOptions[0].points} 分起</em></div>
-    `;
-    return;
-  }
-  if (task.bestPlan) {
-    $("handAnalysis").innerHTML = `
-      <div class="analysis-cell"><span>牌墙剩余</span><b>${task.wallRemaining} 张</b></div>
-      <div class="analysis-cell"><span>手牌结构</span><b>${structure}</b></div>
-      <div class="analysis-cell"><span>目标牌型</span><b>${task.bestPlan.name} ${task.bestPlan.fan}番×${task.bestPlan.multiplier}</b><em>${task.bestPlan.stepsText} · 预计${task.bestPlan.expectedScore}分</em></div>
-    `;
-    return;
-  }
-  $("handAnalysis").innerHTML = `
-    <div class="analysis-cell"><span>牌墙剩余</span><b>${task.wallRemaining} 张</b></div>
-    <div class="analysis-cell"><span>手牌结构</span><b>${structure}</b></div>
-    <div class="analysis-cell"><span>听牌</span><b>${task.tingTiles?.length ? `${task.tingTiles.length} 种` : "尚未听牌"}</b></div>
+function renderPlayGuidance(task) {
+  $("playGuidance").classList.remove("error");
+  const suggestion = task.suggestion;
+  const fanTarget = task.fanOptions && task.fanOptions.length
+    ? `可胡 ${task.fanOptions.slice(0, 2).map((item) => `${tileLabel(item.tile)}·${item.pattern}${item.fan}番`).join("、")}`
+    : task.bestPlan
+      ? `${task.bestPlan.name} ${task.bestPlan.fan}番 ×${task.bestPlan.multiplier}`
+      : task.tingTiles?.length
+        ? `听 ${task.tingTiles.length} 种`
+        : "先按定缺和向听推进";
+  $("playGuidance").innerHTML = `
+    <div class="guide-main">
+      <span>建议出牌</span>
+      <strong>${suggestion ? tileLabel(suggestion.tile) : "自行判断"}</strong>
+    </div>
+    <div class="guide-plan">
+      <span>目标牌型 / 可胡</span>
+      <b>${fanTarget}</b>
+      ${suggestion ? `<em>${suggestion.reason || "兼顾牌型与风险"}</em>` : ""}
+    </div>
   `;
 }
 
@@ -413,10 +387,8 @@ function renderQuestion() {
     ? `${Math.min(100, Math.max(5, (1 - task.wallRemaining / 56) * 100))}%`
     : `${((state.index + 1) / state.tasks.length) * 100}%`;
   $("wallRemaining").textContent = task.wallRemaining;
-  $("gameContext").classList.remove("error");
   renderMeta(task);
-  renderGameContext(task);
-  renderHandAnalysis(task);
+  renderPlayGuidance(task);
   renderTable(task);
   $("selectedLabel").textContent = "点一张手牌";
   $("confirm").disabled = true;
@@ -607,8 +579,8 @@ async function recordDynamicAnswer(tile) {
     selectedTile?.classList.remove("discarding");
     $("confirm").disabled = !state.selected.length;
     $("skip").disabled = false;
-    $("gameContext").classList.add("error");
-    $("gameContext").innerHTML = `<strong>出牌失败</strong><span>${error.message}</span>`;
+    $("playGuidance").classList.add("error");
+    $("playGuidance").innerHTML = `<div class="guide-main"><span>出牌失败</span><strong>${error.message}</strong></div>`;
   }
 }
 
