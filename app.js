@@ -21,7 +21,7 @@ const playerPositions = [
   { player: 2, position: "top", label: "对家", avatar: "对" },
   { player: 1, position: "right", label: "右家", avatar: "右" },
   { player: 3, position: "left", label: "左家", avatar: "左" },
-  { player: 0, position: "self", label: "我", avatar: "我" },
+  { player: 0, position: "self", label: "我", avatar: "你" },
 ];
 
 function makeId(prefix) {
@@ -36,6 +36,10 @@ function tileLabel(tile) {
 
 function miniTile(tile, className = "") {
   return `<span class="mini-tile suit-${tile[1]} ${className}" title="${tileLabel(tile)}"><b>${tile[0]}</b><small>${suitNames[tile[1]] || tile[1]}</small></span>`;
+}
+
+function concealedHand(count = 13) {
+  return Array.from({ length: count }, () => '<i class="tile-back"></i>').join("");
 }
 
 function tileFace(tile) {
@@ -92,7 +96,7 @@ function renderRiver(player, position, label) {
     : "";
   return `
     <div class="river river-${position}">
-      <span class="river-label">${label} · 牌河 ${player.discards.length}</span>
+      <span class="river-label">${label} · ${player.discards.length} 张</span>
       ${melds}
       <div class="river-tiles">${discards}</div>
     </div>
@@ -135,14 +139,13 @@ function renderTable(task) {
   const seats = playerPositions.map(({ player, position, label, avatar }) => {
     const data = playerByIndex(task, player);
     if (!data) return "";
-    const meldCount = data.melds.length
-      ? `<span class="seat-meld-count">${data.melds.length} 副露</span>`
-      : "";
     return `
       <div class="seat seat-${position}${player === 0 ? " self" : ""}">
         <span class="seat-avatar">${avatar}</span>
-        <span class="seat-copy"><b>${label}</b><small>${data.score} 分</small></span>
-        ${meldCount}
+        <span class="seat-copy">
+          <b>${label}</b>
+          <small>${data.score} 分${data.melds.length ? ` · ${data.melds.length}副露` : ""}</small>
+        </span>
       </div>
     `;
   }).join("");
@@ -155,12 +158,17 @@ function renderTable(task) {
   ].join("");
 
   $("tableInfo").innerHTML = `
+    <div class="concealed-hand concealed-top" aria-hidden="true">${concealedHand()}</div>
+    <div class="concealed-hand concealed-left" aria-hidden="true">${concealedHand()}</div>
+    <div class="concealed-hand concealed-right" aria-hidden="true">${concealedHand()}</div>
     ${seats}
-    <div class="table-mark" aria-hidden="true">川<small>血战到底</small></div>
+    <div class="river-board">
+      <div class="table-mark" aria-hidden="true">川<small>血战到底</small></div>
+      ${rivers}
+    </div>
     <div class="wall-stack" aria-hidden="true">
       <i></i><i></i><i></i><i></i><i></i><i></i>
     </div>
-    ${rivers}
   `;
 
   const me = playerByIndex(task, 0);
