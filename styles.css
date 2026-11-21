@@ -33,7 +33,8 @@ body {
   font-family: "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
-body[data-screen="quiz"] {
+body[data-screen="quiz"],
+body[data-screen="missingSuit"] {
   background:
     radial-gradient(circle at 50% 0%, #2d5c4b 0, #102f27 45%, #091d18 100%);
 }
@@ -350,6 +351,87 @@ select {
 .stat b { color: white; font-size: 12px; }
 .stat strong { color: var(--gold-light); }
 .stat.missing { border-color: rgba(232, 139, 108, .36); }
+.game-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  margin: 0 0 8px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 228, 164, .18);
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(189, 133, 46, .18), rgba(3, 38, 28, .48));
+  color: rgba(240, 255, 249, .78);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.game-context strong {
+  flex: 0 0 auto;
+  color: var(--gold-light);
+  font-size: 15px;
+}
+.game-context span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.game-context.error {
+  border-color: rgba(232, 118, 101, .45);
+  background: rgba(111, 32, 25, .54);
+}
+
+.missing-suit-card {
+  margin-top: 12px;
+  padding: 18px 14px;
+  border: 1px solid rgba(255, 226, 166, .45);
+  border-radius: 24px;
+  background:
+    repeating-linear-gradient(96deg, rgba(127, 92, 47, .025) 0 1px, transparent 1px 5px),
+    linear-gradient(180deg, #fffdf7, #eee4cf);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .28);
+}
+.missing-suit-card .eyebrow { color: var(--green); opacity: .85; }
+.missing-suit-card h2 { margin: 6px 0 7px; font-size: 25px; }
+.missing-suit-card > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.missing-hand {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px 4px;
+  margin: 17px 0 15px;
+  padding: 10px 4px 8px;
+  border-radius: 14px;
+  background: rgba(14, 83, 63, .07);
+}
+.missing-hand .mahjong-tile {
+  pointer-events: none;
+  cursor: default;
+}
+.suit-choices {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.suit-choice {
+  display: grid;
+  min-height: 88px;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  border: 1px solid #d8cdb8;
+  border-radius: 16px;
+  background: #fffdf5;
+  color: var(--ink);
+  box-shadow: 0 5px 0 #c9bda6;
+  cursor: pointer;
+}
+.suit-choice b { font-family: "STKaiti", "KaiTi", serif; font-size: 29px; line-height: 1; }
+.suit-choice span { color: var(--muted); font-size: 10px; }
+.suit-choice.suit-w b { color: var(--red); }
+.suit-choice.suit-t b { color: var(--green); }
+.suit-choice.suit-b b { color: var(--blue); }
+.suit-choice:active { transform: translateY(2px); box-shadow: 0 2px 0 #c9bda6; }
+.suit-choice:disabled { opacity: .55; }
 
 .table-shell { padding: 1px 0 0; }
 .table-rim {
@@ -985,6 +1067,7 @@ select {
   gap: 8px;
   margin-top: 7px;
 }
+.actions.dynamic { grid-template-columns: 1fr; }
 .actions .ghost, .actions .primary { min-height: 48px; border-radius: 13px; font-size: 14px; }
 .discard-button:not(:disabled) {
   background: linear-gradient(135deg, #d29b35, #a66b20);

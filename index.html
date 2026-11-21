@@ -9,7 +9,7 @@
   <title>四川麻将出牌采集</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20261121-12">
+  <link rel="stylesheet" href="styles.css?v=20261121-13">
 </head>
 <body>
   <main id="app">
@@ -18,16 +18,16 @@
         <div class="hero-seal">川</div>
         <span class="eyebrow">匿名真人出牌采集</span>
         <h1>坐上来，<br>帮我打一手牌</h1>
-        <p>像真打麻将一样看牌河、副露和手牌。每轮 20 手，点一张你认为该打出的牌。</p>
+        <p>从亲自定缺开始，连续打完整局。每次出牌都会真正改变牌河、副露和后续手牌。</p>
         <div class="hero-tiles" aria-hidden="true">
-          <img class="hero-tile" src="tiles_cn/w5.jpg?v=20261121-12" alt="">
-          <img class="hero-tile" src="tiles_cn/t7.jpg?v=20261121-12" alt="">
-          <img class="hero-tile" src="tiles_cn/b5.jpg?v=20261121-12" alt="">
+          <img class="hero-tile" src="tiles_cn/w5.jpg?v=20261121-13" alt="">
+          <img class="hero-tile" src="tiles_cn/t7.jpg?v=20261121-13" alt="">
+          <img class="hero-tile" src="tiles_cn/b5.jpg?v=20261121-13" alt="">
         </div>
       </div>
       <div class="card welcome-card">
         <div class="quick-facts">
-          <span><b>20</b> 手结束</span>
+          <span><b>1</b> 局连打</span>
           <span><b>0</b> 安装</span>
           <span><b>匿名</b> 不登录</span>
         </div>
@@ -43,10 +43,36 @@
           <input type="checkbox" id="consent">
           <span>我知道只记录手牌、选择、思考时间和对局信息；不会收集姓名、手机号或位置。</span>
         </label>
-        <button id="start" class="primary needs-consent">入座，开始 20 手</button>
+        <button id="start" class="primary needs-consent">入座，开始一局</button>
         <p id="startStatus" class="start-status" aria-live="polite"></p>
         <p class="privacy">匿名编号：<b id="collectorId"></b></p>
       </div>
+    </section>
+
+    <section id="missingSuit" class="screen">
+      <header class="game-hud">
+        <button id="missingExit" class="icon-button" aria-label="退出定缺">×</button>
+        <div class="round-copy">
+          <span>川麻 · 血战到底</span>
+          <h2>先定缺一门</h2>
+        </div>
+        <div class="wall-counter" title="剩余牌墙">
+          <b id="missingWall">--</b>
+          <span>余牌</span>
+        </div>
+      </header>
+      <section class="missing-suit-card">
+        <span class="eyebrow">本局从你的 14 张手牌开始</span>
+        <h2>选择要定缺的花色</h2>
+        <p>定缺后整局固定不变。缺门牌要优先打出，碰杠也不能选择缺门。</p>
+        <div id="missingHand" class="missing-hand" aria-label="本局起手牌"></div>
+        <div class="suit-choices" aria-label="选择定缺花色">
+          <button class="suit-choice suit-w" data-suit="w"><b>万</b><span>定缺万子</span></button>
+          <button class="suit-choice suit-t" data-suit="t"><b>条</b><span>定缺条子</span></button>
+          <button class="suit-choice suit-b" data-suit="b"><b>筒</b><span>定缺筒子</span></button>
+        </div>
+        <p id="missingStatus" class="start-status" aria-live="polite">请选一门；选定后开始连续打完整局。</p>
+      </section>
     </section>
 
     <section id="quiz" class="screen">
@@ -54,7 +80,7 @@
         <button id="exit" class="icon-button" aria-label="退出本轮">×</button>
         <div class="round-copy">
           <span>川麻 · 血战到底</span>
-          <h2 id="progressTitle">第 1 / 20 手</h2>
+          <h2 id="progressTitle">本局第 1 手</h2>
         </div>
         <div class="wall-counter" title="剩余牌墙">
           <b id="wallRemaining">--</b>
@@ -63,6 +89,7 @@
       </header>
       <div class="progress"><i id="progressBar"></i></div>
       <div class="info-row" id="meta"></div>
+      <div id="gameContext" class="game-context" aria-live="polite"></div>
 
       <section class="table-shell" aria-label="麻将牌桌">
         <div class="table-rim">
@@ -111,6 +138,6 @@
       <span id="loadingText">第一次进入需要准备牌桌，请稍等几秒。</span>
     </div>
   </div>
-  <script src="app.js?v=20261121-12"></script>
+  <script src="app.js?v=20261121-13"></script>
 </body>
 </html>

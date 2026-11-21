@@ -1,5 +1,5 @@
-const SESSION_SIZE = 20;
-const TASK_ASSET_VERSION = "20261121-12";
+const STATIC_MIN_GAME_SIZE = 6;
+const TASK_ASSET_VERSION = "20261121-13";
 
 const state = {
   tasks: [],
@@ -12,6 +12,10 @@ const state = {
   taskStartedAt: 0,
   answers: [],
   isAdvancing: false,
+  dynamic: false,
+  gameId: "",
+  liveTask: null,
+  missingGame: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -144,11 +148,93 @@ function shuffle(array) {
   return copy;
 }
 
+function selectStaticGame(tasks) {
+  const groups = new Map();
+  for (const task of tasks) {
+    const key = task.gameIndex ?? task.seed ?? task.id.split("-").slice(0, 3).join("-");
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(task);
+  }
+  const candidates = [...groups.values()]
+    .filter((group) => group.length >= STATIC_MIN_GAME_SIZE)
+    .map((group) => [...group].sort((left, right) => (left.turn ?? 0) - (right.turn ?? 0)));
+  const pool = candidates.length ? candidates : [[...tasks]];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+async function apiJson(path, payload) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`;
+    try {
+      const detail = await response.json();
+      message = detail.error || message;
+    } catch {
+      // Static GitHub Pages may return HTML for an unavailable API.
+    }
+    throw new Error(message);
+  }
+  return response.json();
+}
+
 function show(screenId) {
   document.querySelectorAll(".screen").forEach((node) => node.classList.remove("active"));
   $(screenId).classList.add("active");
   document.body.dataset.screen = screenId;
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderMissingSuit(observation) {
+  state.missingGame = observation;
+  $("missingWall").textContent = observation.wallRemaining;
+  const counts = {};
+  observation.hand.forEach((tile) => { counts[tile] = (counts[tile] || 0) + 1; });
+  const used = {};
+  $("missingHand").innerHTML = observation.hand.map((tile) => {
+    used[tile] = (used[tile] || 0) + 1;
+    const duplicate = counts[tile] > 1 ? `<span class="tile-count">${used[tile]}</span>` : "";
+    return `
+      <span class="mahjong-tile" aria-label="${tileLabel(tile)}">
+        <span class="tile-face">${tileImage(tile)}</span>
+        ${duplicate}
+      </span>
+    `;
+  }).join("");
+  bindTileImages($("missingHand"));
+  document.querySelectorAll(".suit-choice").forEach((button) => {
+    button.disabled = false;
+  });
+  $("missingStatus").classList.remove("error");
+  $("missingStatus").textContent = "请选一门；选定后开始连续打完整局。";
+}
+
+function actionSummary(action) {
+  const typeNames = { discard: "打出", peng: "碰", gang: "杠", hu: "胡牌" };
+  const verb = typeNames[action.type] || action.type;
+  const tile = action.tile ? ` ${tileLabel(action.tile)}` : "";
+  return `${action.playerLabel || `P${action.player}`}${verb}${tile}`;
+}
+
+function renderGameContext(task) {
+  if (state.dynamic) {
+    const recent = task.recentActions && task.recentActions.length
+      ? `刚刚：${task.recentActions.slice(-3).map(actionSummary).join(" · ")}`
+      : "这是本局开始后的第一个决策";
+    $("gameContext").innerHTML = `
+      <strong>定缺 ${task.missingSuitName || "未定"}</strong>
+      <span>本局第 ${task.turn || 1} 手 · ${recent}</span>
+    `;
+    return;
+  }
+  $("gameContext").innerHTML = `
+    <strong>牌谱演示 · 定缺 ${task.missingSuitName || "未定"}</strong>
+    <span>同一局连续关键手；当前为已录制牌谱，选择不会改写下一手。</span>
+  `;
 }
 
 function renderMeta(task) {
@@ -202,18 +288,32 @@ function renderTable(task) {
   $("myMelds").innerHTML = me && me.melds.length ? renderMelds(me, true) : "";
 }
 
+function currentTask() {
+  return state.dynamic ? state.liveTask : state.tasks[state.index];
+}
+
 function renderQuestion() {
-  const task = state.tasks[state.index];
+  const task = currentTask();
+  if (!task) return;
   state.taskStartedAt = performance.now();
   state.selected = [];
   state.isAdvancing = false;
-  $("progressTitle").textContent = `第 ${state.index + 1} / ${state.tasks.length} 手`;
-  $("progressBar").style.width = `${((state.index + 1) / state.tasks.length) * 100}%`;
+  $("progressTitle").textContent = state.dynamic
+    ? `本局第 ${task.turn || 1} 手`
+    : `本局关键手 ${state.index + 1} / ${state.tasks.length}`;
+  $("progressBar").style.width = state.dynamic
+    ? `${Math.min(100, Math.max(5, (1 - task.wallRemaining / 56) * 100))}%`
+    : `${((state.index + 1) / state.tasks.length) * 100}%`;
   $("wallRemaining").textContent = task.wallRemaining;
+  $("gameContext").classList.remove("error");
   renderMeta(task);
+  renderGameContext(task);
   renderTable(task);
   $("selectedLabel").textContent = "点一张手牌";
   $("confirm").disabled = true;
+  $("skip").disabled = false;
+  $("skip").classList.toggle("hidden", state.dynamic);
+  document.querySelector(".actions").classList.toggle("dynamic", state.dynamic);
   const counts = {};
   task.hand.forEach((tile) => { counts[tile] = (counts[tile] || 0) + 1; });
   const used = {};
@@ -352,13 +452,17 @@ function selectTile(button) {
   button.setAttribute("aria-pressed", "true");
   navigator.vibrate?.(12);
   state.selected = [button.dataset.tile];
-  const isMissing = state.tasks[state.index].missingSuit === button.dataset.tile[1];
+  const isMissing = currentTask().missingSuit === button.dataset.tile[1];
   $("selectedLabel").textContent = `已选 ${tileLabel(button.dataset.tile)}${isMissing ? " · 定缺" : ""}`;
   $("confirm").disabled = false;
 }
 
 async function recordAnswer(tile, skipped = false) {
   if (state.isAdvancing) return;
+  if (state.dynamic) {
+    await recordDynamicAnswer(tile);
+    return;
+  }
   state.isAdvancing = true;
   $("confirm").disabled = true;
   $("skip").disabled = true;
@@ -381,6 +485,58 @@ async function recordAnswer(tile, skipped = false) {
     $("skip").disabled = false;
     renderQuestion();
   }
+}
+
+async function recordDynamicAnswer(tile) {
+  if (state.isAdvancing || !state.gameId) return;
+  state.isAdvancing = true;
+  $("confirm").disabled = true;
+  $("skip").disabled = true;
+  const selectedTile = document.querySelector(".mahjong-tile.selected");
+  const responseMs = Math.max(0, Math.round(performance.now() - state.taskStartedAt));
+  if (selectedTile) {
+    navigator.vibrate?.([16, 24, 28]);
+    selectedTile.classList.add("discarding");
+    await new Promise((resolve) => setTimeout(resolve, 220));
+  }
+  try {
+    const result = await apiJson("/api/game/action", {
+      gameId: state.gameId,
+      collectorId: state.collectorId,
+      chosenTile: tile,
+      responseMs,
+    });
+    state.answers.push({ chosenTile: tile, responseMs });
+    state.liveTask = result.observation;
+    navigator.vibrate?.(14);
+    if (state.liveTask.gameOver) finishDynamicGame(state.liveTask);
+    else renderQuestion();
+  } catch (error) {
+    state.isAdvancing = false;
+    selectedTile?.classList.remove("discarding");
+    $("confirm").disabled = !state.selected.length;
+    $("skip").disabled = false;
+    $("gameContext").classList.add("error");
+    $("gameContext").innerHTML = `<strong>出牌失败</strong><span>${error.message}</span>`;
+  }
+}
+
+function finishDynamicGame(observation) {
+  show("done");
+  const scores = Object.entries(observation.summary?.scores || {})
+    .map(([player, score]) => `<div><span>P${player}</span><b>${score} 分</b></div>`)
+    .join("");
+  const winners = observation.summary?.winners || [];
+  $("doneText").textContent = `这一局已经打完并自动提交，你完成了 ${state.answers.length} 次出牌。`;
+  $("summary").innerHTML = `
+    ${scores}
+    <div style="grid-column:1/-1">
+      <span>本局结果</span>
+      <b>${winners.length ? `${winners.map((player) => `P${player}`).join("、")} 胡牌` : "流局"} · ${observation.summary?.rounds || observation.turn} 手</b>
+    </div>
+  `;
+  $("download").classList.add("hidden");
+  window.lastPayload = observation;
 }
 
 async function finish() {
@@ -498,7 +654,7 @@ function preloadTaskPool() {
       if ($("welcome").classList.contains("active")) {
         $("startStatus").classList.remove("error");
         $("startStatus").textContent = $("consent").checked
-          ? `牌桌已准备 · ${taskPoolCount} 个局面`
+          ? "牌桌已准备 · 可开始连续一局"
           : "先勾选上面的匿名说明，再开始";
       }
     })
@@ -510,6 +666,51 @@ function preloadTaskPool() {
       }
     });
   preloadTileAssets();
+}
+
+async function startLiveGame() {
+  const result = await apiJson("/api/game/new", {
+    collectorId: state.collectorId,
+    experience: state.experience,
+    consent: true,
+    consentVersion: "web-human-v1",
+  });
+  return result.observation;
+}
+
+async function chooseMissingSuit(suit) {
+  if (!state.missingGame || state.isAdvancing) return;
+  state.isAdvancing = true;
+  document.querySelectorAll(".suit-choice").forEach((button) => {
+    button.disabled = true;
+  });
+  $("missingStatus").classList.remove("error");
+  $("missingStatus").textContent = "正在按定缺发牌…";
+  setLoading(true, "正在定缺", "确定缺门后，三名 AI 会坐回牌桌。");
+  try {
+    const result = await apiJson("/api/game/missing-suit", {
+      gameId: state.missingGame.gameId,
+      collectorId: state.collectorId,
+      suit,
+    });
+    state.dynamic = true;
+    state.gameId = state.missingGame.gameId;
+    state.liveTask = result.observation;
+    state.tasks = [state.liveTask];
+    state.index = 0;
+    state.startedAt = performance.now();
+    show("quiz");
+    renderQuestion();
+  } catch (error) {
+    $("missingStatus").classList.add("error");
+    $("missingStatus").textContent = `定缺失败：${error.message}`;
+    document.querySelectorAll(".suit-choice").forEach((button) => {
+      button.disabled = false;
+    });
+  } finally {
+    state.isAdvancing = false;
+    setLoading(false);
+  }
 }
 
 async function start() {
@@ -524,13 +725,34 @@ async function start() {
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
   try {
+    const [liveObservation] = await Promise.all([startLiveGame(), preloadTileAssets()]);
+    state.dynamic = true;
+    state.gameId = liveObservation.gameId;
+    state.liveTask = null;
+    state.missingGame = liveObservation;
+    state.answers = [];
+    status.textContent = "";
+    setLoading(false);
+    show("missingSuit");
+    renderMissingSuit(liveObservation);
+    return;
+  } catch (liveError) {
+    console.info("连续牌局服务不可用，切换为牌谱演示。", liveError);
+  }
+
+  try {
     const [payload] = await Promise.all([loadTaskPool(), preloadTileAssets()]);
     const requestedTaskId = new URLSearchParams(window.location.search).get("task");
     const requestedTask = requestedTaskId
       ? payload.tasks.find((task) => task.id === requestedTaskId)
       : null;
+    state.dynamic = false;
+    state.gameId = "";
+    state.missingGame = null;
     state.startedAt = performance.now();
-    state.tasks = requestedTask ? [requestedTask] : shuffle(payload.tasks).slice(0, SESSION_SIZE);
+    state.tasks = requestedTask ? [requestedTask] : selectStaticGame(payload.tasks);
+    state.index = 0;
+    state.answers = [];
     status.textContent = "";
     show("quiz");
     renderQuestion();
@@ -541,7 +763,7 @@ async function start() {
   } finally {
     setLoading(false);
     startButton.disabled = false;
-    startButton.textContent = "入座，开始 20 手";
+    startButton.textContent = "入座，开始一局";
   }
 }
 
@@ -556,7 +778,7 @@ function init() {
     const status = $("startStatus");
     status.classList.remove("error");
     status.textContent = consented
-      ? taskPoolCount ? `牌桌已准备 · ${taskPoolCount} 个局面` : "正在准备牌桌…"
+      ? taskPoolCount ? "牌桌已准备 · 可开始连续一局" : "正在准备牌桌…"
       : "先勾选上面的匿名说明，再开始";
     if (consented) preloadTaskPool();
   });
@@ -572,13 +794,25 @@ function init() {
   });
   $("confirm").addEventListener("click", () => recordAnswer(state.selected[0]));
   $("skip").addEventListener("click", () => recordAnswer(null, true));
+  document.querySelectorAll(".suit-choice").forEach((button) => {
+    button.addEventListener("click", () => chooseMissingSuit(button.dataset.suit));
+  });
   $("exit").addEventListener("click", () => {
-    if (confirm("退出后本轮答案不会提交，确定吗？")) show("welcome");
+    if (confirm("退出后本局不会保存，确定吗？")) show("welcome");
+  });
+  $("missingExit").addEventListener("click", () => {
+    state.missingGame = null;
+    state.gameId = "";
+    show("welcome");
   });
   $("download").addEventListener("click", downloadPayload);
   $("again").addEventListener("click", () => {
     state.index = 0;
     state.answers = [];
+    state.dynamic = false;
+    state.gameId = "";
+    state.liveTask = null;
+    state.missingGame = null;
     state.sessionId = makeId("session");
     show("welcome");
   });
