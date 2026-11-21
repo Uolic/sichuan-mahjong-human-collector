@@ -1,5 +1,5 @@
 const STATIC_MIN_GAME_SIZE = 6;
-const TASK_ASSET_VERSION = "20261121-17";
+const TASK_ASSET_VERSION = "20261121-18";
 
 const state = {
   tasks: [],
@@ -19,6 +19,7 @@ const state = {
   handOrder: [],
   handManual: false,
   reactionStartedAt: 0,
+  decisionMode: "",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -255,6 +256,38 @@ function renderMeta(task) {
     <span class="stat"><span>向听</span><b>${task.shanten}</b></span>
     <span class="stat" title="${tingDetail}"><span>听牌</span><b>${ting}</b></span>
     <span class="stat"><span>桌面</span><b>${task.players.reduce((sum, player) => sum + player.discards.length, 0)} 张</b></span>
+    <span class="stat"><span>牌墙剩余</span><b>${task.wallRemaining} 张</b></span>
+    <span class="stat"><span>手牌结构</span><b>${task.handCount ?? task.hand.length} + ${task.meldCount ?? 0}副露</b></span>
+  `;
+}
+
+function renderHandAnalysis(task) {
+  const me = playerByIndex(task, 0);
+  const meldCount = task.meldCount ?? me?.melds?.length ?? 0;
+  const structure = `${task.handCount ?? task.hand.length}张暗手${meldCount ? ` + ${meldCount}副露` : ""}`;
+  if (task.fanOptions && task.fanOptions.length) {
+    const options = task.fanOptions.slice(0, 3).map((item) =>
+      `${tileLabel(item.tile)} ${item.pattern}${item.fan}番×${item.multiplier}`
+    ).join("、");
+    $("handAnalysis").innerHTML = `
+      <div class="analysis-cell"><span>牌墙剩余</span><b>${task.wallRemaining} 张</b></div>
+      <div class="analysis-cell"><span>手牌结构</span><b>${structure}</b></div>
+      <div class="analysis-cell"><span>可胡番型</span><b>${options}</b><em>${task.fanOptions[0].points} 分起</em></div>
+    `;
+    return;
+  }
+  if (task.bestPlan) {
+    $("handAnalysis").innerHTML = `
+      <div class="analysis-cell"><span>牌墙剩余</span><b>${task.wallRemaining} 张</b></div>
+      <div class="analysis-cell"><span>手牌结构</span><b>${structure}</b></div>
+      <div class="analysis-cell"><span>目标牌型</span><b>${task.bestPlan.name} ${task.bestPlan.fan}番×${task.bestPlan.multiplier}</b><em>${task.bestPlan.stepsText} · 预计${task.bestPlan.expectedScore}分</em></div>
+    `;
+    return;
+  }
+  $("handAnalysis").innerHTML = `
+    <div class="analysis-cell"><span>牌墙剩余</span><b>${task.wallRemaining} 张</b></div>
+    <div class="analysis-cell"><span>手牌结构</span><b>${structure}</b></div>
+    <div class="analysis-cell"><span>听牌</span><b>${task.tingTiles?.length ? `${task.tingTiles.length} 种` : "尚未听牌"}</b></div>
   `;
 }
 
@@ -383,6 +416,7 @@ function renderQuestion() {
   $("gameContext").classList.remove("error");
   renderMeta(task);
   renderGameContext(task);
+  renderHandAnalysis(task);
   renderTable(task);
   $("selectedLabel").textContent = "点一张手牌";
   $("confirm").disabled = true;
@@ -588,6 +622,10 @@ function finishDynamicObservation(observation) {
     showReactionPrompt(observation.reaction);
     return;
   }
+  if (observation.phase === "win" && observation.win) {
+    showWinPrompt(observation.win);
+    return;
+  }
   renderQuestion();
   if (observation.mustDiscard) {
     $("selectedLabel").textContent = "碰杠完成，请打一张";
@@ -627,12 +665,13 @@ function showAiTurnFeed(actions, next) {
     const action = actions[index];
     const typeNames = { discard: "打出", peng: "碰", gang: "杠", hu: "胡牌" };
     const glyphs = { discard: "出", peng: "碰", gang: "杠", hu: "胡" };
+    const tileCount = action.type === "peng" ? 3 : action.type === "gang" ? 4 : 1;
     const detail = `${action.playerLabel || `P${action.player}`} ${typeNames[action.type] || action.type}${action.tile ? ` ${tileLabel(action.tile)}` : ""}`;
     emphasize(action);
     $("aiActionNow").innerHTML = `
       <span class="action-avatar">${action.playerLabel?.slice(0, 1) || "家"}</span>
       <span class="action-copy"><b>${action.playerLabel || `P${action.player}`}</b><strong>${typeNames[action.type] || action.type}</strong></span>
-      ${action.tile ? `<span class="action-tile">${miniTile(action.tile)}</span>` : `<span class="action-glyph">${glyphs[action.type] || "动"}</span>`}
+      ${action.tile ? `<span class="action-tiles">${Array.from({ length: tileCount }, () => miniTile(action.tile)).join("")}</span>` : `<span class="action-glyph">${glyphs[action.type] || "动"}</span>`}
       <span class="action-step">${index + 1}/${actions.length}</span>
     `;
     bindTileImages($("aiActionNow"));
@@ -682,6 +721,7 @@ function handleDynamicObservation(observation) {
 
 function showReactionPrompt(reaction) {
   state.isAdvancing = false;
+  state.decisionMode = "reaction";
   state.reactionStartedAt = performance.now();
   $("aiTurnOverlay").classList.add("hidden");
   $("reactionOverlay").classList.remove("hidden");
@@ -693,27 +733,55 @@ function showReactionPrompt(reaction) {
   bindTileImages($("reactionText"));
   const peng = $("reactionPeng");
   const gang = $("reactionGang");
+  const hu = $("reactionHu");
   const pass = $("reactionPass");
   peng.classList.toggle("hidden", !reaction.options.includes("peng"));
   gang.classList.toggle("hidden", !reaction.options.includes("gang"));
+  hu.classList.add("hidden");
   for (const button of [peng, gang, pass]) button.disabled = false;
+}
+
+function showWinPrompt(win) {
+  state.isAdvancing = false;
+  state.decisionMode = "win";
+  state.reactionStartedAt = performance.now();
+  $("aiTurnOverlay").classList.add("hidden");
+  $("reactionOverlay").classList.remove("hidden");
+  const mine = (win.details || []).find((detail) => detail.player === 0) || win.details?.[0];
+  $("reactionTitle").textContent = win.source === "self_draw" ? "可以自摸胡牌" : `可以胡 ${tileLabel(win.tile)}`;
+  $("reactionText").innerHTML = `
+    ${win.tile ? `<span class="reaction-tile">${miniTile(win.tile)}</span>` : ""}
+    <span>
+      <strong>${mine?.pattern || "平胡"}</strong> · ${mine?.fan || 1}番 × ${mine?.multiplier || 1}倍
+      ${mine?.labels?.length ? `<br>${mine.labels.join(" · ")}` : ""}
+      <br>本局基础分 ${mine?.points || 1} 分，是否现在胡牌？
+    </span>
+  `;
+  bindTileImages($("reactionText"));
+  $("reactionPeng").classList.add("hidden");
+  $("reactionGang").classList.add("hidden");
+  $("reactionHu").classList.remove("hidden");
+  $("reactionHu").disabled = false;
+  $("reactionPass").disabled = false;
 }
 
 async function chooseReaction(action) {
   if (state.isAdvancing) return;
   state.isAdvancing = true;
-  for (const id of ["reactionPeng", "reactionGang", "reactionPass"]) $(id).disabled = true;
+  for (const id of ["reactionPeng", "reactionGang", "reactionHu", "reactionPass"]) $(id).disabled = true;
   try {
-    const result = await apiJson("/api/game/reaction", {
+    const endpoint = state.decisionMode === "win" ? "/api/game/hu" : "/api/game/reaction";
+    const result = await apiJson(endpoint, {
       gameId: state.gameId,
       collectorId: state.collectorId,
       action,
       responseMs: Math.max(0, Math.round(performance.now() - state.reactionStartedAt)),
     });
     $("reactionOverlay").classList.add("hidden");
+    state.decisionMode = "";
     handleDynamicObservation(result.observation);
   } catch (error) {
-    for (const id of ["reactionPeng", "reactionGang", "reactionPass"]) $(id).disabled = false;
+    for (const id of ["reactionPeng", "reactionGang", "reactionHu", "reactionPass"]) $(id).disabled = false;
     $("reactionText").innerHTML = `<span class="error">${error.message}</span>`;
     state.isAdvancing = false;
   }
@@ -1008,6 +1076,7 @@ function init() {
   });
   $("reactionPeng").addEventListener("click", () => chooseReaction("peng"));
   $("reactionGang").addEventListener("click", () => chooseReaction("gang"));
+  $("reactionHu").addEventListener("click", () => chooseReaction("hu"));
   $("reactionPass").addEventListener("click", () => chooseReaction("pass"));
   document.querySelectorAll(".suit-choice").forEach((button) => {
     button.addEventListener("click", () => chooseMissingSuit(button.dataset.suit));

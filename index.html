@@ -9,7 +9,7 @@
   <title>四川麻将出牌采集</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20261121-17">
+  <link rel="stylesheet" href="styles.css?v=20261121-18">
 </head>
 <body>
   <main id="app">
@@ -20,9 +20,9 @@
         <h1>坐上来，<br>帮我打一手牌</h1>
         <p>从亲自定缺开始，连续打完整局。每次出牌都会真正改变牌河、副露和后续手牌。</p>
         <div class="hero-tiles" aria-hidden="true">
-          <img class="hero-tile" src="tiles_cn/w5.jpg?v=20261121-17" alt="">
-          <img class="hero-tile" src="tiles_cn/t7.jpg?v=20261121-17" alt="">
-          <img class="hero-tile" src="tiles_cn/b5.jpg?v=20261121-17" alt="">
+          <img class="hero-tile" src="tiles_cn/w5.jpg?v=20261121-18" alt="">
+          <img class="hero-tile" src="tiles_cn/t7.jpg?v=20261121-18" alt="">
+          <img class="hero-tile" src="tiles_cn/b5.jpg?v=20261121-18" alt="">
         </div>
       </div>
       <div class="card welcome-card">
@@ -84,12 +84,10 @@
         </div>
         <div class="wall-counter" title="剩余牌墙">
           <b id="wallRemaining">--</b>
-          <span>余牌</span>
+          <span>牌墙</span>
         </div>
       </header>
       <div class="progress"><i id="progressBar"></i></div>
-      <div class="info-row" id="meta"></div>
-      <div id="gameContext" class="game-context" aria-live="polite"></div>
 
       <section class="table-shell" aria-label="麻将牌桌">
         <div class="table-rim">
@@ -111,6 +109,9 @@
             <button id="sortHand" class="text-button" type="button">理牌</button>
           </div>
         </div>
+        <div class="info-row" id="meta"></div>
+        <div id="gameContext" class="game-context" aria-live="polite"></div>
+        <div id="handAnalysis" class="hand-analysis" aria-live="polite"></div>
         <div id="myMelds" class="my-melds"></div>
         <div id="hand" class="hand" aria-label="你的手牌"></div>
         <p class="play-hint">点牌选择，拖动可整理顺序 · 选中后显示完整牌名</p>
@@ -138,6 +139,7 @@
           <div class="reaction-actions">
             <button id="reactionPeng" class="primary" type="button">碰</button>
             <button id="reactionGang" class="primary" type="button">杠</button>
+            <button id="reactionHu" class="primary" type="button">胡</button>
             <button id="reactionPass" class="ghost" type="button">过</button>
           </div>
         </div>
@@ -164,6 +166,6 @@
       <span id="loadingText">第一次进入需要准备牌桌，请稍等几秒。</span>
     </div>
   </div>
-  <script src="app.js?v=20261121-17"></script>
+  <script src="app.js?v=20261121-18"></script>
 </body>
 </html>
