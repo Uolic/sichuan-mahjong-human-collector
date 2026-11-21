@@ -117,7 +117,7 @@ const playerPositions = [
   { player: 2, position: "top", label: "对家", avatar: "对" },
   { player: 1, position: "right", label: "右家", avatar: "右" },
   { player: 3, position: "left", label: "左家", avatar: "左" },
-  { player: 0, position: "self", label: "你", avatar: "你" },
+  { player: 0, position: "self", label: "我", avatar: "我" },
 ];
 let taskPoolPromise = null;
 let taskPoolCount = 0;
@@ -1315,7 +1315,7 @@ function finishDynamicGame(observation) {
   const collectionEligible = Boolean(mode.collectionEligible);
   const decisionsThisGame = state.answers.length;
   state.answers = [];
-  const playerLabel = (player) => (Number(player) === 0 ? "你" : `P${player}`);
+  const playerLabel = (player) => (Number(player) === 0 ? "我" : `P${player}`);
   const scores = Object.entries(observation.summary?.scores || {})
     .map(([player, score]) => `<div><span>${playerLabel(player)}</span><b>${score} 分</b></div>`)
     .join("");
