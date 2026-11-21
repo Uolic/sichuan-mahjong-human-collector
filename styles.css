@@ -442,51 +442,13 @@ select {
 .seat-self { right: 7px; bottom: 7px; left: auto; transform: none; }
 .seat.self .seat-avatar { background: linear-gradient(145deg, #78deb3, #147153); color: white; }
 
-.concealed-hand {
-  position: absolute;
-  z-index: 2;
-  display: flex;
-  gap: 2px;
-  opacity: .88;
-  pointer-events: none;
-}
-.concealed-top { top: 8px; left: 50%; transform: translateX(-50%); }
-.concealed-left {
-  top: 19%;
-  bottom: 21%;
-  left: 8px;
-  flex-direction: column;
-}
-.concealed-right {
-  top: 19%;
-  bottom: 21%;
-  right: 8px;
-  flex-direction: column;
-}
-.tile-back {
-  display: block;
-  width: 12px;
-  height: 18px;
-  flex: 0 0 auto;
-  border: 1px solid rgba(237, 224, 184, .65);
-  border-radius: 2px;
-  background:
-    linear-gradient(90deg, transparent 43%, rgba(20, 103, 75, .45) 45% 55%, transparent 57%),
-    linear-gradient(#f4edda, #d8cfb9);
-  box-shadow: 0 2px 0 rgba(63, 52, 31, .34);
-}
-.concealed-top .tile-back { width: 13px; height: 17px; }
-.concealed-top { padding: 0 58px; }
-.concealed-left .tile-back,
-.concealed-right .tile-back { width: 18px; height: 9px; }
-
 .river-board {
   position: absolute;
   inset: 66px 61px 58px;
   z-index: 3;
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr) 54px;
-  grid-template-rows: minmax(78px, 94px) minmax(24px, 1fr) minmax(78px, 94px);
+  grid-template-rows: minmax(108px, 1fr) minmax(16px, .25fr) minmax(108px, 1fr);
   gap: 4px 6px;
   min-height: 0;
 }
@@ -513,6 +475,11 @@ select {
   background: rgba(1, 30, 22, .15);
   color: rgba(237, 255, 248, .8);
   box-shadow: inset 0 0 12px rgba(0, 0, 0, .07);
+}
+.river.empty {
+  border-style: dashed;
+  background: rgba(1, 30, 22, .055);
+  box-shadow: none;
 }
 .river-top { grid-area: 1 / 2; align-self: stretch; }
 .river-bottom { grid-area: 3 / 2; align-self: stretch; }
@@ -594,13 +561,11 @@ select {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 1px;
-  border: 1px solid #d6cdb9;
+  padding: 0;
+  border: 1px solid rgba(134, 116, 81, .48);
   border-bottom-width: 2px;
   border-radius: 3px;
-  background:
-    linear-gradient(145deg, rgba(255,255,255,.72), transparent 40%),
-    linear-gradient(#fffef7, #e8dfca);
+  background: #f5edda;
   color: #39433f;
   font-size: 10px;
   font-weight: 900;
@@ -610,27 +575,8 @@ select {
 .mini-tile.suit-w { color: var(--red); }
 .mini-tile.suit-t { color: var(--green); }
 .mini-tile.suit-b { color: var(--blue); }
-.mini-tile .tile-art-svg { width: 100%; height: 100%; }
+.mini-tile .tile-photo { width: 100%; height: 100%; object-fit: cover; mix-blend-mode: multiply; }
 .river-empty { color: rgba(225, 252, 241, .33); font-size: 9px; }
-.wall-stack {
-  position: absolute;
-  top: 56px;
-  right: 17px;
-  z-index: 3;
-  display: grid;
-  gap: 2px;
-  transform: rotate(-4deg);
-  opacity: .78;
-}
-.wall-stack i {
-  display: block;
-  width: 35px;
-  height: 8px;
-  border: 1px solid rgba(100, 80, 43, .3);
-  border-radius: 2px;
-  background: linear-gradient(#fffdf5, #ddd4bd);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .16);
-}
 .table-mark {
   grid-area: 2 / 2;
   position: relative;
@@ -769,22 +715,33 @@ select {
   align-items: center;
   justify-content: space-between;
   overflow: visible;
-  border: 1px solid var(--tile-edge);
+  border: 1px solid rgba(162, 140, 98, .58);
   border-radius: 8px;
-  padding: 5px 3px 4px;
-  background:
-    radial-gradient(circle at 18% 10%, rgba(255,255,255,.96), transparent 27%),
-    repeating-linear-gradient(105deg, rgba(112, 90, 48, .025) 0 1px, transparent 1px 4px),
-    linear-gradient(#fffef8, #ece4d1);
+  padding: 2px;
+  background: #f7efdd;
   color: var(--ink);
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
   box-shadow:
-    inset 1px 1px 0 rgba(255, 255, 255, .9),
-    inset -1px -1px 0 rgba(116, 96, 57, .12),
+    inset 0 0 0 1px rgba(255, 255, 255, .6),
     0 5px 0 #bfb49d,
     0 10px 14px rgba(48, 40, 27, .2);
   transform-origin: 50% 100%;
   transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+.mahjong-tile.dragging {
+  z-index: 8;
+  cursor: grabbing;
+  pointer-events: none;
+  box-shadow:
+    0 10px 0 #b0a48c,
+    0 22px 30px rgba(25, 22, 16, .28);
+  transform: translateY(-13px) scale(1.05) rotate(2deg);
+}
+.hand.sorting .mahjong-tile:not(.dragging) {
+  transition: transform .12s ease, box-shadow .12s ease;
 }
 .mahjong-tile::after {
   content: "";
@@ -836,9 +793,18 @@ select {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 2px 2px 1px;
+  padding: 0;
+  border-radius: 6px;
 }
-.tile-art-svg { display: block; width: 100%; height: 100%; }
+.tile-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mix-blend-mode: multiply;
+  filter: saturate(1.04) contrast(1.025);
+  pointer-events: none;
+}
 .tile-count {
   position: absolute;
   top: 3px;
@@ -902,26 +868,27 @@ select {
 }
 @media (max-width: 699px) {
   .table-felt { height: clamp(320px, 43dvh, 405px); }
-  .hand-dock { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
-  .actions {
-    position: fixed;
-    right: auto;
-    bottom: calc(8px + env(safe-area-inset-bottom));
-    left: 50%;
-    z-index: 60;
-    width: min(892px, calc(100vw - 28px));
-    margin: 0;
-    padding: 7px;
-    border: 1px solid rgba(125, 91, 48, .18);
-    border-radius: 17px;
-    background: rgba(247, 240, 224, .96);
-    box-shadow: 0 10px 28px rgba(23, 36, 30, .2);
-    transform: translateX(-50%);
-    backdrop-filter: blur(12px);
-  }
 }
 @media (max-height: 720px) {
-  .table-felt { height: 310px; }
+  .table-felt { height: 350px; }
+  .river-board {
+    inset: 58px 61px 48px;
+    grid-template-rows: minmax(108px, 1fr) minmax(16px, .25fr) minmax(108px, 1fr);
+  }
+  .river-top .mini-tile,
+  .river-bottom .mini-tile { width: 13px; height: 17px; }
+  .river-left .mini-tile,
+  .river-right .mini-tile { width: 12px; height: 17px; }
+  .river-top.dense .mini-tile,
+  .river-bottom.dense .mini-tile { width: 9px; height: 13px; }
+  .river-left.dense .mini-tile,
+  .river-right.dense .mini-tile { width: 10px; height: 14px; }
+  .river-top.dense .river-meld .mini-tile,
+  .river-bottom.dense .river-meld .mini-tile { width: 7px; height: 10px; }
+  .river-left.dense .river-meld .mini-tile,
+  .river-right.dense .river-meld .mini-tile { width: 8px; height: 11px; }
+  .river-left.dense .river-tiles,
+  .river-right.dense .river-tiles { grid-template-columns: repeat(3, 10px); }
   .hand { gap: 6px 3px; }
   .mahjong-tile { border-radius: 7px; padding: 4px 2px 3px; }
   .actions .ghost, .actions .primary { min-height: 44px; }
