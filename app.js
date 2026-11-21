@@ -1,5 +1,5 @@
 const SESSION_SIZE = 20;
-const TASK_ASSET_VERSION = "20261121-4";
+const TASK_ASSET_VERSION = "20261121-5";
 
 const state = {
   tasks: [],
@@ -25,6 +25,7 @@ const playerPositions = [
 ];
 let taskPoolPromise = null;
 let taskPoolCount = 0;
+let tileAssetPromise = null;
 
 function makeId(prefix) {
   const bytes = new Uint8Array(6);
@@ -38,7 +39,7 @@ function tileLabel(tile) {
 
 function tileImage(tile) {
   return `
-    <img class="tile-photo" src="tiles_cn/${tile[1]}${tile[0]}.jpg"
+    <img class="tile-photo" src="tiles_cn/${tile[1]}${tile[0]}.jpg?v=${TASK_ASSET_VERSION}"
       alt="" loading="eager" decoding="async" draggable="false">
   `;
 }
@@ -375,6 +376,39 @@ function loadTaskPool() {
   return taskPoolPromise;
 }
 
+function preloadTileAssets() {
+  if (!tileAssetPromise) {
+    const urls = [];
+    for (const suit of ["w", "t", "b"]) {
+      for (let number = 1; number <= 9; number += 1) {
+        urls.push(`tiles_cn/${suit}${number}.jpg?v=${TASK_ASSET_VERSION}`);
+      }
+    }
+    let nextIndex = 0;
+    const loadOne = (url, attempt = 1) => new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve(true);
+      image.onerror = () => {
+        if (attempt < 2) {
+          setTimeout(() => loadOne(url, attempt + 1).then(resolve), 350);
+        } else {
+          resolve(false);
+        }
+      };
+      image.src = url;
+    });
+    const worker = async () => {
+      while (nextIndex < urls.length) {
+        const url = urls[nextIndex];
+        nextIndex += 1;
+        await loadOne(url);
+      }
+    };
+    tileAssetPromise = Promise.all(Array.from({ length: 4 }, worker));
+  }
+  return tileAssetPromise;
+}
+
 function preloadTaskPool() {
   loadTaskPool()
     .then((payload) => {
@@ -393,6 +427,7 @@ function preloadTaskPool() {
         $("startStatus").textContent = "题池暂时没有加载成功，点开始会自动重试。";
       }
     });
+  preloadTileAssets();
 }
 
 async function start() {
@@ -407,7 +442,7 @@ async function start() {
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
   try {
-    const payload = await loadTaskPool();
+    const [payload] = await Promise.all([loadTaskPool(), preloadTileAssets()]);
     const requestedTaskId = new URLSearchParams(window.location.search).get("task");
     const requestedTask = requestedTaskId
       ? payload.tasks.find((task) => task.id === requestedTaskId)
