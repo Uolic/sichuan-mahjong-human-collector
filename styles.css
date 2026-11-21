@@ -731,7 +731,8 @@ select {
   width: 19px;
   height: 24px;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 8px;
   overflow: hidden;
   padding: 0;
   border: 1px solid rgba(134, 116, 81, .48);
@@ -1125,6 +1126,50 @@ select {
   font-weight: 900;
   text-align: center;
 }
+.action-avatar {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffe6a5, #b67b31);
+  color: #3d2a13;
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 19px;
+}
+.action-copy {
+  display: grid;
+  min-width: 82px;
+  justify-items: start;
+  gap: 2px;
+  text-align: left;
+}
+.action-copy b { color: #6f4e2d; font-size: 11px; }
+.action-copy strong { font-size: 20px; line-height: 1; }
+.action-tile .mini-tile {
+  width: 35px;
+  height: 48px;
+  border-width: 1px 1px 3px;
+  box-shadow: 0 3px 0 rgba(84, 73, 49, .25), 0 6px 10px rgba(0, 0, 0, .18);
+}
+.action-glyph {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  background: #7b4c32;
+  color: white;
+  font-size: 19px;
+  font-weight: 900;
+}
+.action-step {
+  margin-left: auto;
+  color: #8a6a45;
+  font-size: 10px;
+  font-weight: 800;
+}
 .action-list {
   display: grid;
   gap: 7px;
@@ -1154,6 +1199,10 @@ select {
   font-size: 10px;
 }
 .ai-action strong { color: var(--ink); }
+.ai-action.current {
+  border-color: rgba(191, 137, 51, .55);
+  background: #fff5dc;
+}
 .seat.action-emphasis {
   z-index: 12;
   animation: seat-action-pulse .8s ease-in-out infinite alternate;

@@ -1,5 +1,5 @@
 const STATIC_MIN_GAME_SIZE = 6;
-const TASK_ASSET_VERSION = "20261121-15";
+const TASK_ASSET_VERSION = "20261121-16";
 
 const state = {
   tasks: [],
@@ -262,12 +262,13 @@ function renderTable(task) {
   const seats = playerPositions.map(({ player, position, label, avatar }) => {
     const data = playerByIndex(task, player);
     if (!data) return "";
+    const missing = data.missingSuitName ? ` · 缺${data.missingSuitName}` : "";
     return `
       <div class="seat seat-${position}${player === 0 ? " self" : ""}"
-        aria-label="${label}，${data.score} 分${data.melds.length ? `，${data.melds.length} 副露` : ""}">
+        aria-label="${label}，${data.score} 分${missing}${data.melds.length ? `，${data.melds.length} 副露` : ""}">
         <span class="seat-avatar">${avatar}</span>
         <span class="seat-copy">
-          <small>${data.score} 分${data.melds.length ? ` · ${data.melds.length}副露` : ""}</small>
+          <small>${data.score} 分${missing}${data.melds.length ? ` · ${data.melds.length}副露` : ""}</small>
         </span>
       </div>
     `;
@@ -604,17 +605,9 @@ function showAiTurnFeed(actions, next) {
   $("aiActionList").innerHTML = "";
   const button = $("continueTurn");
   button.disabled = true;
-  button.textContent = "正在回放…";
-  $("aiActionNow").textContent = "准备查看行动";
-  button.onclick = () => {
-    $("aiTurnOverlay").classList.add("hidden");
-    document.querySelectorAll(".action-emphasis").forEach((node) => {
-      node.classList.remove("action-emphasis");
-    });
-    next();
-  };
-
+  button.textContent = "请查看第一条行动";
   let index = 0;
+  let locked = true;
   const emphasize = (action) => {
     document.querySelectorAll(".action-emphasis").forEach((node) => {
       node.classList.remove("action-emphasis");
@@ -624,26 +617,55 @@ function showAiTurnFeed(actions, next) {
     document.querySelector(`.seat-${position}`)?.classList.add("action-emphasis");
     document.querySelector(`.river-${riverPosition}`)?.classList.add("action-emphasis");
   };
-  const reveal = () => {
+  const showCurrent = () => {
     if (index >= actions.length) {
       button.disabled = false;
       button.textContent = "看清了，继续";
-      $("aiActionNow").textContent = "回放结束，轮到你继续";
+      $("aiActionNow").innerHTML = `<strong>全部行动已看完，轮到你继续</strong>`;
       return;
     }
     const action = actions[index];
     const typeNames = { discard: "打出", peng: "碰", gang: "杠", hu: "胡牌" };
+    const glyphs = { discard: "出", peng: "碰", gang: "杠", hu: "胡" };
     const detail = `${action.playerLabel || `P${action.player}`} ${typeNames[action.type] || action.type}${action.tile ? ` ${tileLabel(action.tile)}` : ""}`;
     emphasize(action);
-    $("aiActionNow").textContent = detail;
-    $("aiActionList").insertAdjacentHTML(
-      "beforeend",
-      `<div class="ai-action"><b>${index + 1}</b><strong>${detail}</strong></div>`,
-    );
-    index += 1;
-    window.setTimeout(reveal, 900);
+    $("aiActionNow").innerHTML = `
+      <span class="action-avatar">${action.playerLabel?.slice(0, 1) || "家"}</span>
+      <span class="action-copy"><b>${action.playerLabel || `P${action.player}`}</b><strong>${typeNames[action.type] || action.type}</strong></span>
+      ${action.tile ? `<span class="action-tile">${miniTile(action.tile)}</span>` : `<span class="action-glyph">${glyphs[action.type] || "动"}</span>`}
+      <span class="action-step">${index + 1}/${actions.length}</span>
+    `;
+    bindTileImages($("aiActionNow"));
+    const history = actions.slice(0, index + 1).map((item, itemIndex) => {
+      const text = `${item.playerLabel || `P${item.player}`}${typeNames[item.type] || item.type}${item.tile ? ` ${tileLabel(item.tile)}` : ""}`;
+      return `<div class="ai-action${itemIndex === index ? " current" : ""}"><b>${itemIndex + 1}</b><strong>${text}</strong></div>`;
+    }).join("");
+    $("aiActionList").innerHTML = history;
+    button.disabled = true;
+    locked = true;
+    button.textContent = `下一条（${index + 1}/${actions.length}）`;
+    window.setTimeout(() => {
+      locked = false;
+      button.disabled = false;
+      button.textContent = index + 1 < actions.length
+        ? `下一条（${index + 2}/${actions.length}）`
+        : "看清了，继续";
+    }, 650);
   };
-  reveal();
+  button.onclick = () => {
+    if (locked) return;
+    index += 1;
+    if (index >= actions.length) {
+      $("aiTurnOverlay").classList.add("hidden");
+      document.querySelectorAll(".action-emphasis").forEach((node) => {
+        node.classList.remove("action-emphasis");
+      });
+      next();
+      return;
+    }
+    showCurrent();
+  };
+  showCurrent();
 }
 
 function handleDynamicObservation(observation) {
