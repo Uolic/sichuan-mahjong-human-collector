@@ -1,5 +1,5 @@
 const SESSION_SIZE = 20;
-const TASK_ASSET_VERSION = "20261121-6";
+const TASK_ASSET_VERSION = "20261121-11";
 
 const state = {
   tasks: [],
@@ -16,6 +16,7 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 const suitNames = { w: "万", t: "条", b: "筒" };
+const suitGlyphs = { w: "万", t: "条", b: "筒" };
 const meldNames = { peng: "碰", gang: "杠", chi: "吃" };
 const playerPositions = [
   { player: 2, position: "top", label: "对家", avatar: "对" },
@@ -38,10 +39,44 @@ function tileLabel(tile) {
 }
 
 function tileImage(tile) {
+  const source = `tiles_cn/${tile[1]}${tile[0]}.jpg?v=${TASK_ASSET_VERSION}`;
   return `
-    <img class="tile-photo" src="tiles_cn/${tile[1]}${tile[0]}.jpg?v=${TASK_ASSET_VERSION}"
-      alt="" loading="eager" decoding="async" draggable="false">
+    <span class="tile-art">
+      <span class="tile-fallback" aria-hidden="true">
+        <b>${tile[0]}</b><small>${suitGlyphs[tile[1]] || tile[1]}</small>
+      </span>
+      <img class="tile-photo" src="${source}" data-src="${source}" data-retry-count="0"
+        alt="" loading="eager" decoding="async" draggable="false">
+    </span>
   `;
+}
+
+function bindTileImages(root = document) {
+  root.querySelectorAll(".tile-photo").forEach((image) => {
+    if (image.dataset.retryBound === "1") return;
+    image.dataset.retryBound = "1";
+    const art = image.closest(".tile-art");
+    const handleError = () => {
+      const retries = Number(image.dataset.retryCount || 0);
+      if (retries < 2) {
+        image.dataset.retryCount = String(retries + 1);
+        art?.classList.add("image-retrying");
+        window.setTimeout(() => {
+          const source = image.dataset.src;
+          image.src = `${source}${source.includes("?") ? "&" : "?"}retry=${retries + 1}`;
+        }, 220 * (retries + 1));
+        return;
+      }
+      image.classList.add("image-error");
+      art?.classList.add("image-failed");
+    };
+    image.addEventListener("load", () => {
+      image.classList.remove("image-error");
+      art?.classList.remove("image-failed", "image-retrying");
+    });
+    image.addEventListener("error", handleError);
+    if (image.complete && image.naturalWidth === 0) handleError();
+  });
 }
 
 function miniTile(tile, className = "") {
@@ -70,16 +105,26 @@ function renderMelds(player, compact = false) {
 function renderRiver(player, position, label) {
   const dense = player.discards.length > 10 || player.melds.length >= 2 ? " dense" : "";
   const empty = player.discards.length === 0 && player.melds.length === 0 ? " empty" : "";
+  const compactMelds = position === "left" || position === "right";
   const discards = player.discards.length
     ? player.discards.map((tile) => miniTile(tile)).join("")
     : `<span class="river-empty">尚未出牌</span>`;
   const melds = player.melds.length
-    ? `<div class="river-melds">${player.melds.map((meld) => `
-        <span class="river-meld">
-          <b>${meldNames[meld.kind] || meld.kind}</b>
-          ${meld.tiles.map((tile) => miniTile(tile)).join("")}
-        </span>
-      `).join("")}</div>`
+    ? `<div class="river-melds${compactMelds ? " compact" : ""}">${player.melds.map((meld) => {
+      const name = meldNames[meld.kind] || meld.kind;
+      const labels = meld.tiles.map(tileLabel).join(" ");
+      const counts = meld.tiles.reduce((result, tile) => {
+        result[tile] = (result[tile] || 0) + 1;
+        return result;
+      }, {});
+      const entries = Object.entries(counts);
+      const summary = entries.length === 1
+        ? `${tileLabel(entries[0][0])}×${entries[0][1]}`
+        : labels;
+      return compactMelds
+        ? `<span class="river-meld compact-meld" title="${name}：${labels}"><b>${name}</b><em>${summary}</em></span>`
+        : `<span class="river-meld"><b>${name}</b>${meld.tiles.map((tile) => miniTile(tile)).join("")}</span>`;
+    }).join("")}</div>`
     : "";
   return `
     <div class="river river-${position}${dense}${empty}">
@@ -151,6 +196,7 @@ function renderTable(task) {
       ${rivers}
     </div>
   `;
+  bindTileImages($("tableInfo"));
 
   const me = playerByIndex(task, 0);
   $("myMelds").innerHTML = me && me.melds.length ? renderMelds(me, true) : "";
@@ -178,12 +224,13 @@ function renderQuestion() {
     const order = counts[tile] > 1 ? `，第${used[tile]}张` : "";
     const aria = `${tileLabel(tile)}${order}${missing ? "，定缺牌" : ""}`;
     return `
-      <button class="mahjong-tile${missing}" data-index="${index}" data-tile="${tile}" aria-label="${aria}" aria-pressed="false">
+      <button class="mahjong-tile${missing}" data-index="${index}" data-tile="${tile}" title="${aria}" aria-label="${aria}" aria-pressed="false">
         <span class="tile-face">${tileImage(tile)}</span>
         ${duplicate}
       </button>
     `;
   }).join("");
+  bindTileImages($("hand"));
   enableHandSorting();
 }
 
