@@ -1,5 +1,5 @@
 const SESSION_SIZE = 20;
-const TASK_ASSET_VERSION = "20261121-11";
+const TASK_ASSET_VERSION = "20261121-12";
 
 const state = {
   tasks: [],
