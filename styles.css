@@ -216,8 +216,65 @@ select {
   box-shadow: none;
   color: rgba(255, 255, 255, .7);
 }
+.primary.needs-consent:not(:disabled) {
+  filter: saturate(.72);
+  box-shadow: 0 8px 18px rgba(7, 82, 62, .13);
+}
 .ghost { border: 1px solid #d9dfda; background: #f7faf8; color: var(--ink); }
 .privacy { margin: 14px 0 0; color: var(--muted); font-size: 11px; text-align: center; }
+.start-status {
+  min-height: 20px;
+  margin: 9px 2px 0;
+  color: var(--green);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+.start-status.error { color: var(--red); }
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  padding: 24px;
+  place-items: center;
+  background: rgba(4, 28, 22, .62);
+  backdrop-filter: blur(8px);
+}
+.loading-card {
+  display: grid;
+  min-width: min(310px, 88vw);
+  justify-items: center;
+  gap: 9px;
+  padding: 25px 24px 23px;
+  border: 1px solid rgba(255, 224, 157, .45);
+  border-radius: 22px;
+  background: linear-gradient(160deg, #fffdf6, #eee5d1);
+  color: var(--ink);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .32);
+  text-align: center;
+}
+.loading-card strong { font-size: 18px; }
+.loading-card > span:last-child { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.loading-tile {
+  display: grid;
+  width: 54px;
+  height: 72px;
+  place-items: center;
+  border: 1px solid #cbbd9e;
+  border-radius: 8px;
+  background: linear-gradient(#fffdf4, #e9dfc9);
+  color: var(--blue);
+  font-family: "KaiTi", "STKaiti", serif;
+  font-size: 30px;
+  font-weight: 800;
+  box-shadow: 0 6px 0 #b8ad96, 0 12px 22px rgba(42, 34, 20, .2);
+  animation: shuffle-tile .9s ease-in-out infinite alternate;
+}
+@keyframes shuffle-tile {
+  from { transform: translateX(-12px) rotate(-7deg); }
+  to { transform: translateX(12px) rotate(7deg); }
+}
 
 .game-hud {
   display: flex;

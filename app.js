@@ -1,4 +1,5 @@
 const SESSION_SIZE = 20;
+const TASK_ASSET_VERSION = "20261121-4";
 
 const state = {
   tasks: [],
@@ -22,6 +23,8 @@ const playerPositions = [
   { player: 3, position: "left", label: "左家", avatar: "左" },
   { player: 0, position: "self", label: "我", avatar: "你" },
 ];
+let taskPoolPromise = null;
+let taskPoolCount = 0;
 
 function makeId(prefix) {
   const bytes = new Uint8Array(6);
@@ -348,19 +351,81 @@ function downloadPayload() {
   setTimeout(() => URL.revokeObjectURL(link.href), 2000);
 }
 
+function setLoading(visible, title = "正在洗牌", text = "第一次进入需要准备牌桌，请稍等几秒。") {
+  $("loadingTitle").textContent = title;
+  $("loadingText").textContent = text;
+  $("loadingOverlay").classList.toggle("hidden", !visible);
+}
+
+async function fetchTaskPayload(path) {
+  const response = await fetch(`${path}?v=${TASK_ASSET_VERSION}`, { cache: "force-cache" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const payload = await response.json();
+  if (!Array.isArray(payload.tasks) || payload.tasks.length === 0) {
+    throw new Error("题池为空");
+  }
+  return payload;
+}
+
+function loadTaskPool() {
+  if (!taskPoolPromise) {
+    taskPoolPromise = fetchTaskPayload("./tasks_ui.json")
+      .catch(() => fetchTaskPayload("./tasks.json"));
+  }
+  return taskPoolPromise;
+}
+
+function preloadTaskPool() {
+  loadTaskPool()
+    .then((payload) => {
+      taskPoolCount = payload.tasks.length;
+      if ($("welcome").classList.contains("active")) {
+        $("startStatus").classList.remove("error");
+        $("startStatus").textContent = $("consent").checked
+          ? `牌桌已准备 · ${taskPoolCount} 个局面`
+          : "先勾选上面的匿名说明，再开始";
+      }
+    })
+    .catch(() => {
+      taskPoolPromise = null;
+      if ($("welcome").classList.contains("active")) {
+        $("startStatus").classList.add("error");
+        $("startStatus").textContent = "题池暂时没有加载成功，点开始会自动重试。";
+      }
+    });
+}
+
 async function start() {
   state.experience = $("experience").value;
-  state.startedAt = performance.now();
-  const response = await fetch("./tasks.json");
-  if (!response.ok) throw new Error("无法加载 tasks.json");
-  const payload = await response.json();
-  const requestedTaskId = new URLSearchParams(window.location.search).get("task");
-  const requestedTask = requestedTaskId
-    ? payload.tasks.find((task) => task.id === requestedTaskId)
-    : null;
-  state.tasks = requestedTask ? [requestedTask] : shuffle(payload.tasks).slice(0, SESSION_SIZE);
-  show("quiz");
-  renderQuestion();
+  const startButton = $("start");
+  const status = $("startStatus");
+  startButton.disabled = true;
+  startButton.textContent = "正在准备牌桌…";
+  status.classList.remove("error");
+  status.textContent = "正在加载题池并洗牌";
+  setLoading(true);
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+  try {
+    const payload = await loadTaskPool();
+    const requestedTaskId = new URLSearchParams(window.location.search).get("task");
+    const requestedTask = requestedTaskId
+      ? payload.tasks.find((task) => task.id === requestedTaskId)
+      : null;
+    state.startedAt = performance.now();
+    state.tasks = requestedTask ? [requestedTask] : shuffle(payload.tasks).slice(0, SESSION_SIZE);
+    status.textContent = "";
+    show("quiz");
+    renderQuestion();
+  } catch (error) {
+    taskPoolPromise = null;
+    status.classList.add("error");
+    status.textContent = `进入失败：${error.message}。请检查网络后重试。`;
+  } finally {
+    setLoading(false);
+    startButton.disabled = false;
+    startButton.textContent = "入座，开始 20 手";
+  }
 }
 
 function init() {
@@ -369,10 +434,24 @@ function init() {
   state.sessionId = makeId("session");
   $("collectorId").textContent = state.collectorId;
   $("consent").addEventListener("change", () => {
-    $("start").disabled = !$("consent").checked;
+    const consented = $("consent").checked;
+    $("start").classList.toggle("needs-consent", !consented);
+    const status = $("startStatus");
+    status.classList.remove("error");
+    status.textContent = consented
+      ? taskPoolCount ? `牌桌已准备 · ${taskPoolCount} 个局面` : "正在准备牌桌…"
+      : "先勾选上面的匿名说明，再开始";
+    if (consented) preloadTaskPool();
   });
   $("start").addEventListener("click", () => {
-    start().catch((error) => alert(error.message));
+    if (!$("consent").checked) {
+      const status = $("startStatus");
+      status.classList.add("error");
+      status.textContent = "请先勾选匿名说明，再点开始";
+      $("consent").focus();
+      return;
+    }
+    start();
   });
   $("confirm").addEventListener("click", () => recordAnswer(state.selected[0]));
   $("skip").addEventListener("click", () => recordAnswer(null, true));
@@ -386,6 +465,10 @@ function init() {
     state.sessionId = makeId("session");
     show("welcome");
   });
+  const runPreload = () => window.setTimeout(preloadTaskPool, 80);
+  if ("requestIdleCallback" in window) requestIdleCallback(runPreload, { timeout: 900 });
+  else runPreload();
+  $("startStatus").textContent = "先勾选上面的匿名说明，再开始";
 }
 
 init();

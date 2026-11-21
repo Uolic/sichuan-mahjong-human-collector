@@ -9,7 +9,7 @@
   <title>四川麻将出牌采集</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20261121-4">
 </head>
 <body>
   <main id="app">
@@ -43,7 +43,8 @@
           <input type="checkbox" id="consent">
           <span>我知道只记录手牌、选择、思考时间和对局信息；不会收集姓名、手机号或位置。</span>
         </label>
-        <button id="start" class="primary" disabled>入座，开始 20 手</button>
+        <button id="start" class="primary needs-consent">入座，开始 20 手</button>
+        <p id="startStatus" class="start-status" aria-live="polite"></p>
         <p class="privacy">匿名编号：<b id="collectorId"></b></p>
       </div>
     </section>
@@ -103,6 +104,13 @@
       </div>
     </section>
   </main>
-  <script src="app.js"></script>
+  <div id="loadingOverlay" class="loading-overlay hidden" role="status" aria-live="polite">
+    <div class="loading-card">
+      <span class="loading-tile" aria-hidden="true">東</span>
+      <strong id="loadingTitle">正在洗牌</strong>
+      <span id="loadingText">第一次进入需要准备牌桌，请稍等几秒。</span>
+    </div>
+  </div>
+  <script src="app.js?v=20261121-4"></script>
 </body>
 </html>
