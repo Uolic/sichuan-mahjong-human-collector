@@ -1,5 +1,5 @@
 const STATIC_MIN_GAME_SIZE = 6;
-const TASK_ASSET_VERSION = "20261121-19";
+const TASK_ASSET_VERSION = "20261121-20";
 
 const state = {
   tasks: [],
@@ -20,6 +20,7 @@ const state = {
   handManual: false,
   reactionStartedAt: 0,
   decisionMode: "",
+  feedAdvance: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -216,7 +217,17 @@ function renderMissingSuit(observation) {
     button.disabled = false;
   });
   $("missingStatus").classList.remove("error");
-  $("missingStatus").textContent = "请选一门；选定后开始连续打完整局。";
+  const dealInfo = observation.dealInfo;
+  if (dealInfo) {
+    const distribution = ["w", "t", "b"]
+      .map((suit) => `${suitNames[suit]}${dealInfo.suitCounts?.[suit] ?? 0}`)
+      .join(" · ");
+    $("missingStatus").textContent = dealInfo.skyShort
+      ? `天缺！起手天然少${dealInfo.naturalMissingNames.join("、")}，三门分布：${distribution}`
+      : `随机洗牌完成，三门分布：${distribution}。请选择定缺。`;
+  } else {
+    $("missingStatus").textContent = "请选一门；选定后开始连续打完整局。";
+  }
 }
 
 function actionSummary(action) {
@@ -392,6 +403,8 @@ function renderQuestion() {
   renderTable(task);
   $("selectedLabel").textContent = "点一张手牌";
   $("confirm").disabled = true;
+  $("confirm").textContent = "打出这张";
+  state.feedAdvance = null;
   $("skip").disabled = false;
   $("skip").classList.toggle("hidden", state.dynamic);
   document.querySelector(".actions").classList.toggle("dynamic", state.dynamic);
@@ -613,9 +626,10 @@ function showAiTurnFeed(actions, next) {
   state.isAdvancing = true;
   $("aiTurnOverlay").classList.remove("hidden");
   $("aiActionList").innerHTML = "";
-  const button = $("continueTurn");
+  $("skip").classList.add("hidden");
+  document.querySelector(".actions").classList.add("dynamic");
+  const button = $("confirm");
   button.disabled = true;
-  button.textContent = "请查看第一条行动";
   let index = 0;
   let locked = true;
   const emphasize = (action) => {
@@ -630,7 +644,7 @@ function showAiTurnFeed(actions, next) {
   const showCurrent = () => {
     if (index >= actions.length) {
       button.disabled = false;
-      button.textContent = "看清了，继续";
+      button.textContent = "继续出牌";
       $("aiActionNow").innerHTML = `<strong>全部行动已看完，轮到你继续</strong>`;
       return;
     }
@@ -654,20 +668,21 @@ function showAiTurnFeed(actions, next) {
     $("aiActionList").innerHTML = history;
     button.disabled = true;
     locked = true;
-    button.textContent = `下一条（${index + 1}/${actions.length}）`;
+    button.textContent = `下一条 ${index + 1}/${actions.length}`;
     window.setTimeout(() => {
       locked = false;
       button.disabled = false;
       button.textContent = index + 1 < actions.length
-        ? `下一条（${index + 2}/${actions.length}）`
-        : "看清了，继续";
+        ? `下一条 ${index + 2}/${actions.length}`
+        : "继续出牌";
     }, 650);
   };
-  button.onclick = () => {
+  state.feedAdvance = () => {
     if (locked) return;
     index += 1;
     if (index >= actions.length) {
       $("aiTurnOverlay").classList.add("hidden");
+      state.feedAdvance = null;
       document.querySelectorAll(".action-emphasis").forEach((node) => {
         node.classList.remove("action-emphasis");
       });
@@ -1034,7 +1049,13 @@ function init() {
     }
     start();
   });
-  $("confirm").addEventListener("click", () => recordAnswer(state.selected[0]));
+  $("confirm").addEventListener("click", () => {
+    if (state.feedAdvance) {
+      state.feedAdvance();
+      return;
+    }
+    recordAnswer(state.selected[0]);
+  });
   $("skip").addEventListener("click", () => recordAnswer(null, true));
   $("sortHand").addEventListener("click", () => {
     const task = currentTask();
