@@ -9,7 +9,7 @@
   <title>四川麻将出牌采集</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20261121-21">
+  <link rel="stylesheet" href="styles.css?v=20261121-22">
 </head>
 <body>
   <main id="app">
@@ -20,9 +20,9 @@
         <h1>坐上来，<br>帮我打一手牌</h1>
         <p>从亲自定缺开始，连续打完整局。每次出牌都会真正改变牌河、副露和后续手牌。</p>
         <div class="hero-tiles" aria-hidden="true">
-          <img class="hero-tile" src="tiles_cn/w5.jpg?v=20261121-21" alt="">
-          <img class="hero-tile" src="tiles_cn/t7.jpg?v=20261121-21" alt="">
-          <img class="hero-tile" src="tiles_cn/b5.jpg?v=20261121-21" alt="">
+          <img class="hero-tile" src="tiles_cn/w5.jpg?v=20261121-22" alt="">
+          <img class="hero-tile" src="tiles_cn/t7.jpg?v=20261121-22" alt="">
+          <img class="hero-tile" src="tiles_cn/b5.jpg?v=20261121-22" alt="">
         </div>
       </div>
       <div class="card welcome-card">
@@ -34,11 +34,12 @@
         <label class="field">
           <span>你的麻将经验</span>
           <select id="experience">
-            <option value="beginner">刚开始学</option>
-            <option value="intermediate" selected>会打，但不熟练</option>
-            <option value="advanced">经常打、比较熟练</option>
+            <option value="beginner">新手教学 · 固定局</option>
+            <option value="intermediate" selected>中等对局 · 有提示</option>
+            <option value="advanced">高手对局 · 无提示</option>
           </select>
         </label>
+        <p id="modeNote" class="mode-note"></p>
         <label class="consent">
           <input type="checkbox" id="consent">
           <span>我知道只记录手牌、选择、思考时间和对局信息；不会收集姓名、手机号或位置。</span>
@@ -53,7 +54,7 @@
       <header class="game-hud">
         <button id="missingExit" class="icon-button" aria-label="退出定缺">×</button>
         <div class="round-copy">
-          <span>川麻 · 血战到底</span>
+          <span id="missingModeKicker">川麻 · 血战到底</span>
           <h2>先定缺一门</h2>
         </div>
         <div class="wall-counter" title="剩余牌墙">
@@ -65,6 +66,7 @@
         <span class="eyebrow">本局从你的 14 张手牌开始</span>
         <h2>选择要定缺的花色</h2>
         <p>定缺后整局固定不变。缺门牌要优先打出，碰杠也不能选择缺门。</p>
+        <p id="missingLesson" class="mode-lesson" aria-live="polite"></p>
         <div id="missingHand" class="missing-hand" aria-label="本局起手牌"></div>
         <div class="suit-choices" aria-label="选择定缺花色">
           <button class="suit-choice suit-w" data-suit="w"><b>万</b><span>定缺万子</span></button>
@@ -79,7 +81,7 @@
       <header class="game-hud">
         <button id="exit" class="icon-button" aria-label="退出本轮">×</button>
         <div class="round-copy">
-          <span>川麻 · 血战到底</span>
+          <span id="gameModeKicker">川麻 · 血战到底</span>
           <h2 id="progressTitle">本局第 1 手</h2>
         </div>
         <div class="wall-counter" title="剩余牌墙">
@@ -98,6 +100,13 @@
         </div>
       </section>
 
+      <div id="aiTurnOverlay" class="ai-inline hidden" aria-live="polite">
+        <div class="action-card">
+          <div id="aiActionNow" class="action-now"></div>
+          <div id="aiActionList" class="action-list"></div>
+        </div>
+      </div>
+
       <section class="hand-dock">
         <div class="turn-line">
           <div class="turn-copy">
@@ -111,12 +120,6 @@
         </div>
         <div class="info-row" id="meta"></div>
         <div id="playGuidance" class="play-guidance" aria-live="polite"></div>
-        <div id="aiTurnOverlay" class="ai-inline hidden" aria-live="polite">
-          <div class="action-card">
-            <div id="aiActionNow" class="action-now"></div>
-            <div id="aiActionList" class="action-list"></div>
-          </div>
-        </div>
         <div id="myMelds" class="my-melds"></div>
         <div id="hand" class="hand" aria-label="你的手牌"></div>
         <p class="play-hint">点牌选择，拖动可整理顺序 · 选中后显示完整牌名</p>
@@ -143,12 +146,13 @@
 
     <section id="done" class="screen">
       <div class="hero small done-hero">
-        <span class="eyebrow">采集完成</span>
-        <h1>这一桌，打完了</h1>
+        <span id="doneKicker" class="eyebrow">采集完成</span>
+        <h1 id="doneTitle">本局打完了</h1>
         <p id="doneText">正在提交匿名数据……</p>
       </div>
       <div class="card done-card">
         <div class="summary" id="summary"></div>
+        <button id="nextMode" class="primary hidden">去中等局，开始采集</button>
         <button id="download" class="primary hidden">下载并分享结果</button>
         <button id="again" class="ghost">再答一轮</button>
       </div>
@@ -161,6 +165,6 @@
       <span id="loadingText">第一次进入需要准备牌桌，请稍等几秒。</span>
     </div>
   </div>
-  <script src="app.js?v=20261121-21"></script>
+  <script src="app.js?v=20261121-22"></script>
 </body>
 </html>

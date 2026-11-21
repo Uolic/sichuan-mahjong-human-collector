@@ -1,5 +1,5 @@
 const STATIC_MIN_GAME_SIZE = 6;
-const TASK_ASSET_VERSION = "20261121-21";
+const TASK_ASSET_VERSION = "20261121-22";
 
 const state = {
   tasks: [],
@@ -28,6 +28,40 @@ const suitNames = { w: "万", t: "条", b: "筒" };
 const suitGlyphs = { w: "万", t: "条", b: "筒" };
 const suitOrder = { w: 0, t: 1, b: 2 };
 const meldNames = { peng: "碰", gang: "杠", chi: "吃" };
+const experienceModes = {
+  beginner: {
+    label: "新手教学",
+    summary: "固定教学局 · 规则讲解 · 有建议",
+    hintsEnabled: true,
+    tutorialEnabled: true,
+    fixedDeal: true,
+    collectionEligible: false,
+  },
+  intermediate: {
+    label: "中等对局",
+    summary: "随机牌局 · 建议与番型提示",
+    hintsEnabled: true,
+    tutorialEnabled: false,
+    fixedDeal: false,
+    collectionEligible: true,
+  },
+  advanced: {
+    label: "高手对局",
+    summary: "随机牌局 · 不显示建议和推理提示",
+    hintsEnabled: false,
+    tutorialEnabled: false,
+    fixedDeal: false,
+    collectionEligible: true,
+  },
+  unspecified: {
+    label: "自由对局",
+    summary: "随机牌局 · 保留基础提示",
+    hintsEnabled: true,
+    tutorialEnabled: false,
+    fixedDeal: false,
+    collectionEligible: false,
+  },
+};
 const playerPositions = [
   { player: 2, position: "top", label: "对家", avatar: "对" },
   { player: 1, position: "right", label: "右家", avatar: "右" },
@@ -59,6 +93,17 @@ function tileImage(tile) {
         alt="" loading="eager" decoding="async" draggable="false">
     </span>
   `;
+}
+
+function modeFor(task = null) {
+  const local = experienceModes[state.experience] || experienceModes.unspecified;
+  return { ...local, ...(task?.mode || {}) };
+}
+
+function updateModeNote() {
+  const mode = modeFor();
+  $("modeNote").textContent = mode.summary;
+  $("modeNote").dataset.mode = state.experience;
 }
 
 function bindTileImages(root = document) {
@@ -197,6 +242,8 @@ function show(screenId) {
 
 function renderMissingSuit(observation) {
   state.missingGame = observation;
+  const mode = modeFor(observation);
+  $("missingModeKicker").textContent = `${mode.label} · 血战到底`;
   $("missingWall").textContent = observation.wallRemaining;
   const hand = sortedTiles(observation.hand);
   const counts = {};
@@ -215,19 +262,35 @@ function renderMissingSuit(observation) {
   bindTileImages($("missingHand"));
   document.querySelectorAll(".suit-choice").forEach((button) => {
     button.disabled = false;
+    button.classList.remove("recommended");
+    button.removeAttribute("data-recommend");
   });
   $("missingStatus").classList.remove("error");
   const dealInfo = observation.dealInfo;
-  if (dealInfo) {
+  if (mode.hintsEnabled && dealInfo) {
     const distribution = ["w", "t", "b"]
       .map((suit) => `${suitNames[suit]}${dealInfo.suitCounts?.[suit] ?? 0}`)
       .join(" · ");
     $("missingStatus").textContent = dealInfo.skyShort
       ? `天缺！起手天然少${dealInfo.naturalMissingNames.join("、")}，三门分布：${distribution}`
-      : `随机洗牌完成，三门分布：${distribution}。请选择定缺。`;
+      : `${mode.tutorialEnabled ? "教学局已准备好" : "洗牌完成"}，三门分布：${distribution}。`;
+    const minimum = Math.min(
+      ...["w", "t", "b"].map((suit) => Number(dealInfo.suitCounts?.[suit] ?? 0)),
+    );
+    document.querySelectorAll(".suit-choice").forEach((button) => {
+      const count = Number(dealInfo.suitCounts?.[button.dataset.suit] ?? 0);
+      if (count !== minimum) return;
+      button.classList.add("recommended");
+      button.dataset.recommend = mode.tutorialEnabled ? "教学推荐" : "参考";
+    });
   } else {
-    $("missingStatus").textContent = "请选一门；选定后开始连续打完整局。";
+    $("missingStatus").textContent = "请选择你的定缺花色；选定后开始连续打完整局。";
   }
+  $("missingLesson").textContent = mode.tutorialEnabled
+    ? observation.tutorialTip || "先看三门张数，张数最少的一门通常最适合定缺。"
+    : mode.hintsEnabled
+      ? "提示：定缺通常从张数最少的一门开始；定缺后整局不能更换。"
+      : "";
 }
 
 function actionSummary(action) {
@@ -238,7 +301,17 @@ function actionSummary(action) {
 }
 
 function renderMeta(task) {
-  const isTenpai = task.shanten <= 0;
+  const mode = modeFor(task);
+  if (!mode.hintsEnabled) {
+    $("meta").classList.add("minimal");
+    $("meta").innerHTML = `
+      <span class="stat missing"><span>定缺</span><strong>${task.missingSuitName || "未定"}</strong></span>
+      <span class="stat"><span>牌墙剩余</span><b>${task.wallRemaining} 张</b></span>
+    `;
+    return;
+  }
+  $("meta").classList.remove("minimal");
+  const isTenpai = Number.isFinite(task.shanten) && task.shanten <= 0;
   const ting = task.tingTiles && task.tingTiles.length
     ? `可听 ${task.tingTiles.length} 种`
     : isTenpai ? "已听牌" : "尚未听牌";
@@ -254,7 +327,15 @@ function renderMeta(task) {
 }
 
 function renderPlayGuidance(task) {
+  const mode = modeFor(task);
   $("playGuidance").classList.remove("error");
+  if (!mode.hintsEnabled) {
+    $("playGuidance").classList.add("hidden");
+    $("playGuidance").innerHTML = "";
+    return;
+  }
+  $("playGuidance").classList.remove("hidden");
+  $("playGuidance").classList.toggle("tutorial", Boolean(mode.tutorialEnabled));
   const suggestion = task.suggestion;
   const fanTarget = task.fanOptions && task.fanOptions.length
     ? `可胡 ${task.fanOptions.slice(0, 2).map((item) => `${tileLabel(item.tile)}·${item.pattern}${item.fan}番`).join("、")}`
@@ -269,9 +350,9 @@ function renderPlayGuidance(task) {
       <strong>${suggestion ? tileLabel(suggestion.tile) : "自行判断"}</strong>
     </div>
     <div class="guide-plan">
-      <span>目标牌型 / 可胡</span>
-      <b>${fanTarget}</b>
-      ${suggestion ? `<em>${suggestion.reason || "兼顾牌型与风险"}</em>` : ""}
+      <span>${mode.tutorialEnabled ? "本步规则" : "目标牌型 / 可胡"}</span>
+      <b>${mode.tutorialEnabled ? task.tutorialTip || "先打定缺牌，再保留连牌和对子。" : fanTarget}</b>
+      <em>${mode.tutorialEnabled ? fanTarget : suggestion ? suggestion.reason || "兼顾牌型与风险" : ""}</em>
     </div>
   `;
 }
@@ -391,12 +472,14 @@ function renderHand(task) {
 function renderQuestion() {
   const task = currentTask();
   if (!task) return;
+  const mode = modeFor(task);
   state.taskStartedAt = performance.now();
   state.selected = [];
   state.isAdvancing = false;
   $("progressTitle").textContent = state.dynamic
     ? `本局第 ${task.turn || 1} 手`
     : `本局关键手 ${state.index + 1} / ${state.tasks.length}`;
+  $("gameModeKicker").textContent = `${mode.label} · 血战到底`;
   $("progressBar").style.width = state.dynamic
     ? `${Math.min(100, Math.max(5, (1 - task.wallRemaining / 56) * 100))}%`
     : `${((state.index + 1) / state.tasks.length) * 100}%`;
@@ -595,6 +678,7 @@ async function recordDynamicAnswer(tile) {
     selectedTile?.classList.remove("discarding");
     $("confirm").disabled = !state.selected.length;
     $("skip").disabled = false;
+    $("playGuidance").classList.remove("hidden");
     $("playGuidance").classList.add("error");
     $("playGuidance").innerHTML = `<div class="guide-main"><span>出牌失败</span><strong>${error.message}</strong></div>`;
   }
@@ -716,9 +800,13 @@ function showReactionPrompt(reaction) {
   $("aiTurnOverlay").classList.add("hidden");
   $("reactionOverlay").classList.remove("hidden");
   $("reactionTitle").textContent = `${reaction.discarderLabel}打出 ${tileLabel(reaction.tile)}`;
+  const mode = modeFor(currentTask());
   $("reactionText").innerHTML = `
     <span class="reaction-tile">${miniTile(reaction.tile)}</span>
-    <span>你可以选择${reaction.options.includes("gang") ? "杠或" : ""}碰这张牌，也可以直接过。</span>
+    <span>
+      你可以选择${reaction.options.includes("gang") ? "杠或" : ""}碰这张牌，也可以直接过。
+      ${mode.tutorialEnabled ? "<br><b>教学：</b>碰或杠以后，你还要亲手补打一张。" : ""}
+    </span>
   `;
   bindTileImages($("reactionText"));
   const peng = $("reactionPeng");
@@ -738,13 +826,17 @@ function showWinPrompt(win) {
   $("aiTurnOverlay").classList.add("hidden");
   $("reactionOverlay").classList.remove("hidden");
   const mine = (win.details || []).find((detail) => detail.player === 0) || win.details?.[0];
+  const mode = modeFor(currentTask());
   $("reactionTitle").textContent = win.source === "self_draw" ? "可以自摸胡牌" : `可以胡 ${tileLabel(win.tile)}`;
   $("reactionText").innerHTML = `
     ${win.tile ? `<span class="reaction-tile">${miniTile(win.tile)}</span>` : ""}
     <span>
-      <strong>${mine?.pattern || "平胡"}</strong> · ${mine?.fan || 1}番 × ${mine?.multiplier || 1}倍
-      ${mine?.labels?.length ? `<br>${mine.labels.join(" · ")}` : ""}
-      <br>本局基础分 ${mine?.points || 1} 分，是否现在胡牌？
+      ${mode.hintsEnabled && mine ? `
+        <strong>${mine.pattern || "平胡"}</strong> · ${mine.fan || 1}番 × ${mine.multiplier || 1}倍
+        ${mine.labels?.length ? `<br>${mine.labels.join(" · ")}` : ""}
+        <br>本局基础分 ${mine.points || 1} 分，是否现在胡牌？
+      ` : "你已经满足胡牌条件，是否现在胡牌？"}
+      ${mode.tutorialEnabled ? "<br><b>教学：</b>选“胡”结束你的牌局，选“过”则继续打这一张。" : ""}
     </span>
   `;
   bindTileImages($("reactionText"));
@@ -779,29 +871,67 @@ async function chooseReaction(action) {
 
 function finishDynamicGame(observation) {
   show("done");
+  const mode = modeFor(observation);
+  const tutorial = Boolean(mode.tutorialEnabled);
+  const collectionEligible = Boolean(mode.collectionEligible);
+  const decisionsThisGame = state.answers.length;
+  state.answers = [];
   const scores = Object.entries(observation.summary?.scores || {})
     .map(([player, score]) => `<div><span>P${player}</span><b>${score} 分</b></div>`)
     .join("");
   const winners = observation.summary?.winners || [];
-  $("doneText").textContent = `这一局已经打完并自动提交，你完成了 ${state.answers.length} 次出牌。`;
+  $("doneKicker").textContent = tutorial ? "本局结算 · 教学" : "本局结算";
+  $("doneTitle").textContent = "本局打完了";
+  $("doneText").textContent = tutorial
+    ? `本局教学完成，共出牌 ${decisionsThisGame} 次。本次练习不计入正式采集，下一局会重新计数。`
+    : collectionEligible
+      ? `本局已单独保存，共出牌 ${decisionsThisGame} 次；下一局会重新计数，不累计到本页。`
+      : `本局共出牌 ${decisionsThisGame} 次。本模式不计入正式采集，下一局会重新计数。`;
   $("summary").innerHTML = `
     ${scores}
     <div style="grid-column:1/-1">
       <span>本局结果</span>
       <b>${winners.length ? `${winners.map((player) => `P${player}`).join("、")} 胡牌` : "流局"} · ${observation.summary?.rounds || observation.turn} 手</b>
     </div>
+    <div style="grid-column:1/-1">
+      <span>数据状态</span>
+      <b>${tutorial ? "教学练习 · 不计入采集" : collectionEligible ? "中等/高手正式采集" : "自由模式 · 不计入采集"}</b>
+    </div>
   `;
+  $("nextMode").classList.toggle("hidden", !tutorial);
   $("download").classList.add("hidden");
+  $("again").textContent = tutorial ? "再练一次" : "再打一局";
   window.lastPayload = observation;
 }
 
 async function finish() {
   show("done");
+  $("nextMode").classList.add("hidden");
+  $("again").textContent = "再答一轮";
+  const answersThisGame = [...state.answers];
+  state.answers = [];
   const elapsed = Math.round((performance.now() - state.startedAt) / 60000);
   $("summary").innerHTML = `
-    <div><span>完成题目</span><b>${state.answers.filter((answer) => !answer.skipped).length}</b></div>
-    <div><span>跳过题目</span><b>${state.answers.filter((answer) => answer.skipped).length}</b></div>
+    <div><span>本局完成</span><b>${answersThisGame.filter((answer) => !answer.skipped).length}</b></div>
+    <div><span>本局跳过</span><b>${answersThisGame.filter((answer) => answer.skipped).length}</b></div>
   `;
+  const mode = modeFor();
+  if (mode.tutorialEnabled) {
+    $("doneKicker").textContent = "本局结算 · 教学";
+    $("doneTitle").textContent = "本局打完了";
+    $("doneText").textContent = "新手教学完成。本次练习不计入正式采集，下一步去中等局实战。";
+    $("summary").innerHTML += `
+      <div style="grid-column:1/-1">
+        <span>数据状态</span>
+        <b>教学练习 · 不计入采集</b>
+      </div>
+    `;
+    $("nextMode").classList.remove("hidden");
+    $("download").classList.add("hidden");
+    return;
+  }
+  $("doneKicker").textContent = "本局结算";
+  $("doneTitle").textContent = "本局打完了";
   const payload = {
     schema: "sichuan-human-choice-v1",
     sessionId: state.sessionId,
@@ -811,7 +941,7 @@ async function finish() {
     consent: true,
     startedAt: new Date(Date.now() - elapsed * 60000).toISOString(),
     submittedAt: new Date().toISOString(),
-    answers: state.answers,
+    answers: answersThisGame,
   };
   window.lastPayload = payload;
   try {
@@ -1032,6 +1162,12 @@ function init() {
   localStorage.setItem("mahjongCollectorId", state.collectorId);
   state.sessionId = makeId("session");
   $("collectorId").textContent = state.collectorId;
+  state.experience = $("experience").value;
+  updateModeNote();
+  $("experience").addEventListener("change", () => {
+    state.experience = $("experience").value;
+    updateModeNote();
+  });
   $("consent").addEventListener("change", () => {
     const consented = $("consent").checked;
     $("start").classList.toggle("needs-consent", !consented);
@@ -1087,6 +1223,21 @@ function init() {
     show("welcome");
   });
   $("download").addEventListener("click", downloadPayload);
+  $("nextMode").addEventListener("click", () => {
+    state.index = 0;
+    state.answers = [];
+    state.dynamic = false;
+    state.gameId = "";
+    state.liveTask = null;
+    state.missingGame = null;
+    state.handOrder = [];
+    state.handManual = false;
+    state.sessionId = makeId("session");
+    $("experience").value = "intermediate";
+    state.experience = "intermediate";
+    updateModeNote();
+    start();
+  });
   $("again").addEventListener("click", () => {
     state.index = 0;
     state.answers = [];
@@ -1097,6 +1248,7 @@ function init() {
     state.handOrder = [];
     state.handManual = false;
     state.sessionId = makeId("session");
+    $("nextMode").classList.add("hidden");
     show("welcome");
   });
   const runPreload = () => window.setTimeout(preloadTaskPool, 80);

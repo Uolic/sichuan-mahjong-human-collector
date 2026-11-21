@@ -164,6 +164,14 @@ button, select { -webkit-user-select: none; user-select: none; }
 }
 .quick-facts b { display: block; margin-bottom: 2px; color: var(--felt-deep); font-size: 17px; }
 .field { display: grid; gap: 8px; color: var(--muted); font-size: 14px; }
+.mode-note {
+  min-height: 18px;
+  margin: 7px 2px 0;
+  color: var(--green);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.mode-note[data-mode="advanced"] { color: #866026; }
 select {
   width: 100%;
   min-height: 50px;
@@ -335,6 +343,7 @@ select {
   scrollbar-width: none;
 }
 .info-row::-webkit-scrollbar { display: none; }
+.info-row.minimal .stat { flex: 1; justify-content: center; }
 .stat {
   display: inline-flex;
   min-width: max-content;
@@ -394,6 +403,16 @@ select {
 .missing-suit-card .eyebrow { color: var(--green); opacity: .85; }
 .missing-suit-card h2 { margin: 6px 0 7px; font-size: 25px; }
 .missing-suit-card > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.mode-lesson {
+  margin-top: 8px !important;
+  padding: 7px 9px;
+  border: 1px solid rgba(25, 121, 86, .16);
+  border-radius: 9px;
+  background: rgba(36, 137, 99, .07);
+  color: #315a49 !important;
+  font-size: 10px !important;
+}
+.mode-lesson:empty { display: none; }
 .missing-hand {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -413,6 +432,7 @@ select {
   gap: 8px;
 }
 .suit-choice {
+  position: relative;
   display: grid;
   min-height: 88px;
   place-items: center;
@@ -430,6 +450,22 @@ select {
 .suit-choice.suit-w b { color: var(--red); }
 .suit-choice.suit-t b { color: var(--green); }
 .suit-choice.suit-b b { color: var(--blue); }
+.suit-choice.recommended {
+  border-color: #c6923c;
+  box-shadow: 0 5px 0 #b98028, 0 0 0 2px rgba(223, 171, 80, .18);
+}
+.suit-choice.recommended::after {
+  content: attr(data-recommend);
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 2px 5px;
+  border-radius: 99px;
+  background: #9b6a24;
+  color: white;
+  font-size: 7px;
+  font-weight: 800;
+}
 .suit-choice:active { transform: translateY(2px); box-shadow: 0 2px 0 #c9bda6; }
 .suit-choice:disabled { opacity: .55; }
 
@@ -937,6 +973,15 @@ select {
   border-color: rgba(180, 55, 50, .45);
   background: #fff1ed;
 }
+.play-guidance.tutorial {
+  grid-template-columns: 76px minmax(0, 1fr);
+  border-color: rgba(31, 126, 88, .3);
+  background: rgba(230, 244, 232, .92);
+}
+.play-guidance.tutorial .guide-plan b {
+  white-space: normal;
+  line-height: 1.35;
+}
 .hand::before {
   content: "";
   position: absolute;
@@ -1185,7 +1230,7 @@ select {
   backdrop-filter: none;
 }
 .ai-inline {
-  margin: 0 2px 7px;
+  margin: 8px 2px 0;
 }
 .ai-inline .action-card {
   display: grid;
@@ -1406,10 +1451,66 @@ select {
   .table-felt { height: clamp(320px, 43dvh, 405px); }
 }
 @media (max-height: 720px) {
-  .table-felt { height: 350px; }
+  body[data-screen="welcome"] #app {
+    padding-top: calc(8px + env(safe-area-inset-top));
+    padding-bottom: 12px;
+  }
+  .welcome-hero {
+    min-height: 215px;
+    padding: 20px 20px 18px;
+  }
+  .welcome-hero h1 { font-size: 34px; }
+  .welcome-hero > p { display: none; }
+  .welcome-hero .hero-seal {
+    top: 20px;
+    right: 20px;
+    width: 64px;
+    height: 64px;
+    font-size: 36px;
+  }
+  .hero-tiles { right: 18px; bottom: 15px; }
+  .hero-tile { width: 40px; height: 54px; }
+  .welcome-card {
+    margin: -14px 8px 0;
+    padding: 12px 14px;
+  }
+  .quick-facts { margin-bottom: 9px; }
+  .quick-facts span { padding: 6px 4px; }
+  .mode-note { margin-top: 4px; }
+  .consent { margin: 9px 0; }
+  .start-status { margin-top: 6px; }
+  .privacy { margin-top: 5px; }
+  body[data-screen="quiz"] #app,
+  body[data-screen="missingSuit"] #app { padding-bottom: 0; }
+  body[data-screen="quiz"] #app {
+    padding-top: calc(8px + env(safe-area-inset-top));
+  }
+  body[data-screen="quiz"] .game-hud {
+    min-height: 48px;
+    padding: 6px 9px;
+  }
+  body[data-screen="quiz"] .icon-button {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    font-size: 21px;
+  }
+  body[data-screen="quiz"] .progress { margin-top: 5px; }
+  .missing-suit-card {
+    margin-top: 8px;
+    padding: 14px 12px;
+  }
+  .missing-hand {
+    gap: 6px 3px;
+    margin: 10px 0 9px;
+    padding: 8px 4px 6px;
+  }
+  .suit-choice { min-height: 76px; }
+  .table-rim { padding: 6px; }
+  .table-felt { height: clamp(230px, 36dvh, 270px); }
   .river-board {
-    inset: 58px 54px 46px;
-    grid-template-rows: minmax(58px, .78fr) minmax(92px, 1.22fr) minmax(58px, .78fr);
+    inset: 48px 46px 36px;
+    grid-template-rows: minmax(38px, .75fr) minmax(60px, 1.3fr) minmax(38px, .75fr);
   }
   .river-top .mini-tile,
   .river-bottom .mini-tile { width: 16px; height: 21px; }
@@ -1433,7 +1534,17 @@ select {
     height: auto;
     aspect-ratio: .68;
   }
-  .hand { gap: 6px 3px; }
+  .hand-dock { padding: 8px 8px calc(5px + env(safe-area-inset-bottom)); }
+  .turn-line { margin-bottom: 5px; }
+  .hand-dock .info-row { margin-bottom: 5px; }
+  .play-guidance { gap: 5px; margin-bottom: 4px; padding: 5px; }
+  .guide-main,
+  .guide-plan { padding: 4px 6px; }
+  .hand { gap: 5px 2px; min-height: 58px; padding-top: 6px; }
+  .play-hint { display: none; }
+  .actions { margin-top: 4px; }
+  .actions .ghost,
+  .actions .primary { min-height: 42px; }
   .mahjong-tile { border-radius: 7px; padding: 4px 2px 3px; }
   .actions .ghost, .actions .primary { min-height: 44px; }
 }
