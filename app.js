@@ -1,5 +1,5 @@
 const STATIC_MIN_GAME_SIZE = 6;
-const TASK_ASSET_VERSION = "20261121-20";
+const TASK_ASSET_VERSION = "20261121-21";
 
 const state = {
   tasks: [],
@@ -367,17 +367,20 @@ function renderHand(task) {
   state.handOrder = [...tiles];
   const counts = {};
   tiles.forEach((tile) => { counts[tile] = (counts[tile] || 0) + 1; });
+  const drawnCount = task.drawnTile ? counts[task.drawnTile] || 0 : 0;
   const used = {};
   $("hand").innerHTML = tiles.map((tile, index) => {
     used[tile] = (used[tile] || 0) + 1;
     const duplicate = counts[tile] > 1 ? `<span class="tile-count">${used[tile]}</span>` : "";
     const missing = tile[1] === task.missingSuit ? " missing" : "";
+    const newlyDrawn = tile === task.drawnTile && used[tile] === drawnCount;
     const order = counts[tile] > 1 ? `，第${used[tile]}张` : "";
-    const aria = `${tileLabel(tile)}${order}${missing ? "，定缺牌" : ""}`;
+    const aria = `${tileLabel(tile)}${order}${missing ? "，定缺牌" : ""}${newlyDrawn ? "，新摸牌" : ""}`;
     return `
-      <button class="mahjong-tile${missing}" data-index="${index}" data-tile="${tile}" title="${aria}" aria-label="${aria}" aria-pressed="false">
+      <button class="mahjong-tile${missing}${newlyDrawn ? " newly-drawn" : ""}" data-index="${index}" data-tile="${tile}" title="${aria}" aria-label="${aria}" aria-pressed="false">
         <span class="tile-face">${tileImage(tile)}</span>
         ${duplicate}
+        ${newlyDrawn ? `<span class="tile-new">新</span>` : ""}
       </button>
     `;
   }).join("");
@@ -401,7 +404,7 @@ function renderQuestion() {
   renderMeta(task);
   renderPlayGuidance(task);
   renderTable(task);
-  $("selectedLabel").textContent = "点一张手牌";
+  $("selectedLabel").textContent = task.drawnTile ? `新摸 ${tileLabel(task.drawnTile)}` : "点一张手牌";
   $("confirm").disabled = true;
   $("confirm").textContent = "打出这张";
   state.feedAdvance = null;

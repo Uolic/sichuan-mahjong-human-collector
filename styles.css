@@ -1019,6 +1019,39 @@ select {
     0 16px 24px rgba(34, 29, 18, .25);
   transform: translateY(-11px) rotate(-1deg);
 }
+.mahjong-tile.newly-drawn {
+  z-index: 3;
+  border-color: #d9a93e;
+  box-shadow:
+    0 5px 0 #bfb49d,
+    0 0 0 3px rgba(255, 205, 84, .42),
+    0 10px 20px rgba(112, 77, 23, .24);
+  animation: new-tile-glow 1.2s ease-in-out infinite alternate;
+}
+.tile-new {
+  position: absolute;
+  top: -6px;
+  left: -4px;
+  z-index: 4;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f7ca58, #b97b1e);
+  color: white;
+  font-size: 9px;
+  font-weight: 900;
+  box-shadow: 0 2px 6px rgba(93, 59, 18, .32);
+}
+@keyframes new-tile-glow {
+  to {
+    box-shadow:
+      0 5px 0 #bfb49d,
+      0 0 0 5px rgba(255, 220, 113, .22),
+      0 12px 22px rgba(112, 77, 23, .28);
+  }
+}
 .mahjong-tile.discarding {
   pointer-events: none;
   animation: discard-tile .24s cubic-bezier(.2, .8, .25, 1) forwards;
