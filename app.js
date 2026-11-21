@@ -1,5 +1,5 @@
 const STATIC_MIN_GAME_SIZE = 6;
-const TASK_ASSET_VERSION = "20261121-23";
+const TASK_ASSET_VERSION = "20261121-24";
 
 const state = {
   tasks: [],
@@ -117,7 +117,7 @@ const playerPositions = [
   { player: 2, position: "top", label: "对家", avatar: "对" },
   { player: 1, position: "right", label: "右家", avatar: "右" },
   { player: 3, position: "left", label: "左家", avatar: "左" },
-  { player: 0, position: "self", label: "我", avatar: "我" },
+  { player: 0, position: "self", label: "你", avatar: "你" },
 ];
 let taskPoolPromise = null;
 let taskPoolCount = 0;
@@ -266,6 +266,7 @@ function openBeginnerGuide(step = 0) {
   if (!modeFor().tutorialEnabled) return;
   state.guideStep = Math.max(0, Math.min(step, beginnerGuideSteps.length - 1));
   state.guideOpen = true;
+  document.documentElement.classList.add("guide-open");
   $("beginnerGuideOverlay").classList.remove("hidden");
   renderBeginnerGuide();
 }
@@ -274,6 +275,7 @@ function closeBeginnerGuide() {
   state.guideRenderToken += 1;
   state.guideOpen = false;
   state.guideSeen = true;
+  document.documentElement.classList.remove("guide-open");
   $("beginnerGuideOverlay").classList.add("hidden");
   $("guideSpotlight").classList.add("hidden");
   $("quiz").classList.remove("guide-active");
@@ -536,11 +538,13 @@ function actionSummary(action) {
 
 function renderMeta(task) {
   const mode = modeFor(task);
+  const score = task.scorePreview || {};
   if (!mode.hintsEnabled) {
     $("meta").classList.add("minimal");
     $("meta").innerHTML = `
       <span class="stat missing"><span>定缺</span><strong>${task.missingSuitName || "未定"}</strong></span>
       <span class="stat"><span>牌墙剩余</span><b>${task.wallRemaining} 张</b></span>
+      <span class="stat score"><span>本局得分</span><b>${score.currentScore ?? 0} 分</b></span>
     `;
     return;
   }
@@ -555,6 +559,8 @@ function renderMeta(task) {
   $("meta").innerHTML = `
     <span class="stat missing"><span>定缺</span><strong>${task.missingSuitName || "未定"}</strong></span>
     <span class="stat"><span>牌墙剩余</span><b>${task.wallRemaining} 张</b></span>
+    <span class="stat score"><span>本局得分</span><b>${score.currentScore ?? 0} 分</b></span>
+    ${score.pattern && score.points != null ? `<span class="stat potential"><span>实时预计</span><b>${score.pattern} · ${score.points} 分</b></span>` : ""}
     <span class="stat"><span>向听</span><b>${task.shanten}</b></span>
     <span class="stat" title="${tingDetail}"><span>听牌</span><b>${ting}</b></span>
   `;
@@ -571,13 +577,16 @@ function renderPlayGuidance(task) {
   $("playGuidance").classList.remove("hidden");
   $("playGuidance").classList.toggle("tutorial", Boolean(mode.tutorialEnabled));
   const suggestion = task.suggestion;
-  const fanTarget = task.fanOptions && task.fanOptions.length
+  const defaultTarget = task.fanOptions && task.fanOptions.length
     ? `可胡 ${task.fanOptions.slice(0, 2).map((item) => `${tileLabel(item.tile)}·${item.pattern}${item.fan}番`).join("、")}`
     : task.bestPlan
       ? `${task.bestPlan.name} ${task.bestPlan.fan}番 ×${task.bestPlan.multiplier}`
       : task.tingTiles?.length
         ? `听 ${task.tingTiles.length} 种`
         : "先按定缺和向听推进";
+  const fanTarget = mode.tutorialEnabled && task.tutorialGoal
+    ? task.tutorialGoal
+    : defaultTarget;
   $("playGuidance").innerHTML = `
     <div class="guide-main">
       <span>建议出牌</span>
@@ -735,6 +744,9 @@ function renderQuestion() {
   $("aiNext").classList.add("hidden");
   $("quiz").classList.remove("ai-feed-active");
   document.querySelector(".actions").classList.remove("feed-locked");
+  document.querySelector(".turn-copy b").textContent = "轮到你出牌";
+  document.querySelector(".hand-tools").classList.remove("hidden");
+  $("meta").classList.remove("hidden");
   state.taskStartedAt = performance.now();
   state.selected = [];
   state.isAdvancing = false;
@@ -1029,7 +1041,11 @@ function analyzeActionForBeginner(action) {
     return `${name}碰了 ${tile}。碰牌会变成明牌副露，之后还要再打一张，威胁和牌型都开始公开。`;
   }
   if (action.type === "gang") {
-    return `${name}杠了 ${tile}。杠后通常会补摸一张，手牌价值提高，但明牌也让其他玩家更容易判断。`;
+    const score = task?.scorePreview;
+    const bonus = score?.rootCount
+      ? `当前有 ${score.rootCount} 根，预计 ${score.fan} 番、${score.points} 分。`
+      : "";
+    return `${name}杠了 ${tile}。杠后通常会补摸一张，明牌会让牌型更清楚。${bonus}`;
   }
   if (action.type === "hu") {
     return `${name}胡了${tile ? ` ${tile}` : ""}。血战到底会继续，直到达到结束条件。`;
@@ -1049,6 +1065,9 @@ function showAiTurnFeed(actions, next) {
   $("beginnerMarquee").classList.add("hidden");
   $("quiz").classList.add("ai-feed-active");
   $("aiActionList").innerHTML = "";
+  document.querySelector(".hand-tools").classList.add("hidden");
+  $("meta").classList.add("hidden");
+  $("playGuidance").classList.add("hidden");
   $("skip").classList.add("hidden");
   document.querySelector(".actions").classList.add("dynamic");
   document.querySelector(".actions").classList.add("feed-locked");
@@ -1081,6 +1100,8 @@ function showAiTurnFeed(actions, next) {
     const tileCount = action.type === "peng" ? 3 : action.type === "gang" ? 4 : 1;
     emphasize(action);
     card.className = `action-card${tutorial ? " tutorial-action" : ""} action-${action.type}`;
+    document.querySelector(".turn-copy b").textContent =
+      `${action.playerLabel || `P${action.player}`} · ${typeNames[action.type] || action.type}`;
     $("aiActionNow").innerHTML = `
       <span class="action-avatar">${action.playerLabel?.slice(0, 1) || "家"}</span>
       <span class="action-copy"><b>${action.playerLabel || `P${action.player}`}</b><strong>${typeNames[action.type] || action.type}</strong></span>
@@ -1166,6 +1187,7 @@ function showReactionPrompt(reaction) {
     <span>
       你可以选择${reaction.options.includes("gang") ? "杠或" : ""}碰这张牌，也可以直接过。
       ${mode.tutorialEnabled ? "<br><b>教学：</b>碰或杠以后，你还要亲手补打一张。" : ""}
+      ${mode.tutorialEnabled && reaction.tutorialHint ? `<br><strong class="reaction-coach">${reaction.tutorialHint}</strong>` : ""}
     </span>
   `;
   bindTileImages($("reactionText"));
@@ -1179,7 +1201,16 @@ function showReactionPrompt(reaction) {
   for (const button of [peng, gang, pass]) button.disabled = false;
   peng.classList.toggle("reaction-ready", reaction.options.includes("peng"));
   gang.classList.toggle("reaction-ready", reaction.options.includes("gang"));
-  hu.classList.remove("reaction-ready", "win-ready");
+  hu.classList.remove("reaction-ready", "win-ready", "tutorial-suggested");
+  for (const button of [peng, gang, hu, pass]) button.classList.remove("tutorial-suggested");
+  if (reaction.tutorialRecommended && reaction.tutorialRecommended !== "pass") {
+    const recommended = $(
+      `reaction${reaction.tutorialRecommended[0].toUpperCase()}${reaction.tutorialRecommended.slice(1)}`,
+    );
+    recommended?.classList.add("tutorial-suggested");
+  } else if (reaction.tutorialRecommended === "pass") {
+    pass.classList.add("tutorial-suggested");
+  }
   if (mode.tutorialEnabled) {
     showCoachBubble(
       `别急，先看 ${tileLabel(reaction.tile)}：能碰就凑成三张明牌，碰后必须补打；不想变牌型就选“过”。`,
@@ -1204,7 +1235,7 @@ function showWinPrompt(win) {
       ${mode.hintsEnabled && mine ? `
         <strong>${mine.pattern || "平胡"}</strong> · ${mine.fan || 1}番 × ${mine.multiplier || 1}倍
         ${mine.labels?.length ? `<br>${mine.labels.join(" · ")}` : ""}
-        <br>本局基础分 ${mine.points || 1} 分，是否现在胡牌？
+        <br>本次胡牌预计 ${mine.points || 1} 分，是否现在胡牌？
       ` : "你已经满足胡牌条件，是否现在胡牌？"}
       ${mode.tutorialEnabled ? "<br><b>教学：</b>选“胡”结束你的牌局，选“过”则继续打这一张。" : ""}
     </span>
@@ -1212,12 +1243,15 @@ function showWinPrompt(win) {
   bindTileImages($("reactionText"));
   $("reactionPeng").classList.add("hidden");
   $("reactionGang").classList.add("hidden");
-  $("reactionPeng").classList.remove("reaction-ready", "win-ready");
-  $("reactionGang").classList.remove("reaction-ready", "win-ready");
+  $("reactionPeng").classList.remove("reaction-ready", "win-ready", "tutorial-suggested");
+  $("reactionGang").classList.remove("reaction-ready", "win-ready", "tutorial-suggested");
+  $("reactionPass").classList.remove("tutorial-suggested");
+  $("reactionHu").classList.remove("tutorial-suggested");
   $("reactionHu").classList.remove("hidden");
   $("reactionHu").disabled = false;
   $("reactionPass").disabled = false;
   $("reactionHu").classList.add("reaction-ready", "win-ready");
+  if (mode.tutorialEnabled) $("reactionHu").classList.add("tutorial-suggested");
   if (mode.tutorialEnabled) {
     showCoachBubble(
       `${win.source === "self_draw" ? "你摸到了" : "别人打出了"}可胡的牌。先看番型，再决定“胡”还是“过”。`,
@@ -1261,7 +1295,7 @@ async function chooseReaction(action) {
     }
     $("reactionOverlay").classList.add("hidden");
     for (const id of ["reactionPeng", "reactionGang", "reactionHu", "reactionPass"]) {
-      $(id).classList.remove("reaction-ready", "win-ready", "reaction-burst");
+      $(id).classList.remove("reaction-ready", "win-ready", "reaction-burst", "tutorial-suggested");
     }
     state.decisionMode = "";
     handleDynamicObservation(result.observation);
@@ -1281,8 +1315,9 @@ function finishDynamicGame(observation) {
   const collectionEligible = Boolean(mode.collectionEligible);
   const decisionsThisGame = state.answers.length;
   state.answers = [];
+  const playerLabel = (player) => (Number(player) === 0 ? "你" : `P${player}`);
   const scores = Object.entries(observation.summary?.scores || {})
-    .map(([player, score]) => `<div><span>P${player}</span><b>${score} 分</b></div>`)
+    .map(([player, score]) => `<div><span>${playerLabel(player)}</span><b>${score} 分</b></div>`)
     .join("");
   const winners = observation.summary?.winners || [];
   $("doneKicker").textContent = tutorial ? "本局结算 · 教学" : "本局结算";
@@ -1296,7 +1331,7 @@ function finishDynamicGame(observation) {
     ${scores}
     <div style="grid-column:1/-1">
       <span>本局结果</span>
-      <b>${winners.length ? `${winners.map((player) => `P${player}`).join("、")} 胡牌` : "流局"} · ${observation.summary?.rounds || observation.turn} 手</b>
+      <b>${winners.length ? `${winners.map(playerLabel).join("、")} 胡牌` : "流局"} · ${observation.summary?.rounds || observation.turn} 手</b>
     </div>
     <div style="grid-column:1/-1">
       <span>数据状态</span>
@@ -1603,6 +1638,11 @@ function init() {
   window.addEventListener("resize", () => {
     if (state.guideOpen) renderBeginnerGuide();
   });
+  window.addEventListener("scroll", () => {
+    if (!state.guideOpen) return;
+    const step = beginnerGuideSteps[state.guideStep];
+    positionGuideSpotlight(step);
+  }, { passive: true });
   $("consent").addEventListener("change", () => {
     const consented = $("consent").checked;
     $("start").classList.toggle("needs-consent", !consented);
