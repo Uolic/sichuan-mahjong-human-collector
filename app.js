@@ -1,5 +1,5 @@
 const STATIC_MIN_GAME_SIZE = 6;
-const TASK_ASSET_VERSION = "20261121-13";
+const TASK_ASSET_VERSION = "20261121-15";
 
 const state = {
   tasks: [],
@@ -16,11 +16,15 @@ const state = {
   gameId: "",
   liveTask: null,
   missingGame: null,
+  handOrder: [],
+  handManual: false,
+  reactionStartedAt: 0,
 };
 
 const $ = (id) => document.getElementById(id);
 const suitNames = { w: "万", t: "条", b: "筒" };
 const suitGlyphs = { w: "万", t: "条", b: "筒" };
+const suitOrder = { w: 0, t: 1, b: 2 };
 const meldNames = { peng: "碰", gang: "杠", chi: "吃" };
 const playerPositions = [
   { player: 2, position: "top", label: "对家", avatar: "对" },
@@ -192,10 +196,11 @@ function show(screenId) {
 function renderMissingSuit(observation) {
   state.missingGame = observation;
   $("missingWall").textContent = observation.wallRemaining;
+  const hand = sortedTiles(observation.hand);
   const counts = {};
-  observation.hand.forEach((tile) => { counts[tile] = (counts[tile] || 0) + 1; });
+  hand.forEach((tile) => { counts[tile] = (counts[tile] || 0) + 1; });
   const used = {};
-  $("missingHand").innerHTML = observation.hand.map((tile) => {
+  $("missingHand").innerHTML = hand.map((tile) => {
     used[tile] = (used[tile] || 0) + 1;
     const duplicate = counts[tile] > 1 ? `<span class="tile-count">${used[tile]}</span>` : "";
     return `
@@ -292,6 +297,75 @@ function currentTask() {
   return state.dynamic ? state.liveTask : state.tasks[state.index];
 }
 
+function compareTiles(left, right) {
+  const suitDiff = (suitOrder[left[1]] ?? 9) - (suitOrder[right[1]] ?? 9);
+  if (suitDiff) return suitDiff;
+  return Number(left[0]) - Number(right[0]);
+}
+
+function sortedTiles(tiles) {
+  return [...tiles].sort(compareTiles);
+}
+
+function arrangedTiles(tiles) {
+  if (!state.handManual || !state.handOrder.length) return sortedTiles(tiles);
+  const available = {};
+  tiles.forEach((tile) => { available[tile] = (available[tile] || 0) + 1; });
+  const ordered = [];
+  for (const tile of state.handOrder) {
+    if (!available[tile]) continue;
+    ordered.push(tile);
+    available[tile] -= 1;
+  }
+  const remaining = [];
+  tiles.forEach((tile) => {
+    if (!available[tile]) return;
+    remaining.push(tile);
+    available[tile] -= 1;
+  });
+  remaining.sort(compareTiles).forEach((tile) => {
+    let insertAt = ordered.length;
+    const suit = suitOrder[tile[1]];
+    for (let index = ordered.length - 1; index >= 0; index -= 1) {
+      if ((suitOrder[ordered[index][1]] ?? 9) <= suit) {
+        insertAt = index + 1;
+        break;
+      }
+    }
+    ordered.splice(insertAt, 0, tile);
+  });
+  return ordered;
+}
+
+function captureHandOrder() {
+  state.handOrder = [...$("hand").querySelectorAll(".mahjong-tile")]
+    .map((node) => node.dataset.tile);
+  state.handManual = true;
+}
+
+function renderHand(task) {
+  const tiles = arrangedTiles(task.hand);
+  state.handOrder = [...tiles];
+  const counts = {};
+  tiles.forEach((tile) => { counts[tile] = (counts[tile] || 0) + 1; });
+  const used = {};
+  $("hand").innerHTML = tiles.map((tile, index) => {
+    used[tile] = (used[tile] || 0) + 1;
+    const duplicate = counts[tile] > 1 ? `<span class="tile-count">${used[tile]}</span>` : "";
+    const missing = tile[1] === task.missingSuit ? " missing" : "";
+    const order = counts[tile] > 1 ? `，第${used[tile]}张` : "";
+    const aria = `${tileLabel(tile)}${order}${missing ? "，定缺牌" : ""}`;
+    return `
+      <button class="mahjong-tile${missing}" data-index="${index}" data-tile="${tile}" title="${aria}" aria-label="${aria}" aria-pressed="false">
+        <span class="tile-face">${tileImage(tile)}</span>
+        ${duplicate}
+      </button>
+    `;
+  }).join("");
+  bindTileImages($("hand"));
+  enableHandSorting();
+}
+
 function renderQuestion() {
   const task = currentTask();
   if (!task) return;
@@ -314,24 +388,7 @@ function renderQuestion() {
   $("skip").disabled = false;
   $("skip").classList.toggle("hidden", state.dynamic);
   document.querySelector(".actions").classList.toggle("dynamic", state.dynamic);
-  const counts = {};
-  task.hand.forEach((tile) => { counts[tile] = (counts[tile] || 0) + 1; });
-  const used = {};
-  $("hand").innerHTML = task.hand.map((tile, index) => {
-    used[tile] = (used[tile] || 0) + 1;
-    const duplicate = counts[tile] > 1 ? `<span class="tile-count">${used[tile]}</span>` : "";
-    const missing = tile[1] === task.missingSuit ? " missing" : "";
-    const order = counts[tile] > 1 ? `，第${used[tile]}张` : "";
-    const aria = `${tileLabel(tile)}${order}${missing ? "，定缺牌" : ""}`;
-    return `
-      <button class="mahjong-tile${missing}" data-index="${index}" data-tile="${tile}" title="${aria}" aria-label="${aria}" aria-pressed="false">
-        <span class="tile-face">${tileImage(tile)}</span>
-        ${duplicate}
-      </button>
-    `;
-  }).join("");
-  bindTileImages($("hand"));
-  enableHandSorting();
+  renderHand(task);
 }
 
 function enableHandSorting() {
@@ -355,6 +412,7 @@ function enableHandSorting() {
     }
     if (moved) {
       suppressClickUntil = performance.now() + 300;
+      captureHandOrder();
       navigator.vibrate?.(18);
     }
     drag = null;
@@ -507,10 +565,8 @@ async function recordDynamicAnswer(tile) {
       responseMs,
     });
     state.answers.push({ chosenTile: tile, responseMs });
-    state.liveTask = result.observation;
     navigator.vibrate?.(14);
-    if (state.liveTask.gameOver) finishDynamicGame(state.liveTask);
-    else renderQuestion();
+    handleDynamicObservation(result.observation);
   } catch (error) {
     state.isAdvancing = false;
     selectedTile?.classList.remove("discarding");
@@ -518,6 +574,122 @@ async function recordDynamicAnswer(tile) {
     $("skip").disabled = false;
     $("gameContext").classList.add("error");
     $("gameContext").innerHTML = `<strong>出牌失败</strong><span>${error.message}</span>`;
+  }
+}
+
+function finishDynamicObservation(observation) {
+  state.isAdvancing = false;
+  if (observation.gameOver) {
+    finishDynamicGame(observation);
+    return;
+  }
+  if (observation.phase === "reaction" && observation.reaction) {
+    showReactionPrompt(observation.reaction);
+    return;
+  }
+  renderQuestion();
+  if (observation.mustDiscard) {
+    $("selectedLabel").textContent = "碰杠完成，请打一张";
+  }
+}
+
+function showAiTurnFeed(actions, next) {
+  $("reactionOverlay").classList.add("hidden");
+  if (!actions || !actions.length) {
+    next();
+    return;
+  }
+  state.isAdvancing = true;
+  $("aiTurnOverlay").classList.remove("hidden");
+  $("aiActionList").innerHTML = "";
+  const button = $("continueTurn");
+  button.disabled = true;
+  button.textContent = "正在回放…";
+  $("aiActionNow").textContent = "准备查看行动";
+  button.onclick = () => {
+    $("aiTurnOverlay").classList.add("hidden");
+    document.querySelectorAll(".action-emphasis").forEach((node) => {
+      node.classList.remove("action-emphasis");
+    });
+    next();
+  };
+
+  let index = 0;
+  const emphasize = (action) => {
+    document.querySelectorAll(".action-emphasis").forEach((node) => {
+      node.classList.remove("action-emphasis");
+    });
+    const position = { 0: "self", 1: "right", 2: "top", 3: "left" }[action.player];
+    const riverPosition = position === "self" ? "bottom" : position;
+    document.querySelector(`.seat-${position}`)?.classList.add("action-emphasis");
+    document.querySelector(`.river-${riverPosition}`)?.classList.add("action-emphasis");
+  };
+  const reveal = () => {
+    if (index >= actions.length) {
+      button.disabled = false;
+      button.textContent = "看清了，继续";
+      $("aiActionNow").textContent = "回放结束，轮到你继续";
+      return;
+    }
+    const action = actions[index];
+    const typeNames = { discard: "打出", peng: "碰", gang: "杠", hu: "胡牌" };
+    const detail = `${action.playerLabel || `P${action.player}`} ${typeNames[action.type] || action.type}${action.tile ? ` ${tileLabel(action.tile)}` : ""}`;
+    emphasize(action);
+    $("aiActionNow").textContent = detail;
+    $("aiActionList").insertAdjacentHTML(
+      "beforeend",
+      `<div class="ai-action"><b>${index + 1}</b><strong>${detail}</strong></div>`,
+    );
+    index += 1;
+    window.setTimeout(reveal, 900);
+  };
+  reveal();
+}
+
+function handleDynamicObservation(observation) {
+  state.liveTask = observation;
+  const actions = (observation.recentActions || []).filter(
+    (action) => !(action.player === 0 && action.type === "discard"),
+  );
+  if (actions.length) {
+    showAiTurnFeed(actions, () => finishDynamicObservation(observation));
+  } else {
+    finishDynamicObservation(observation);
+  }
+}
+
+function showReactionPrompt(reaction) {
+  state.isAdvancing = false;
+  state.reactionStartedAt = performance.now();
+  $("aiTurnOverlay").classList.add("hidden");
+  $("reactionOverlay").classList.remove("hidden");
+  $("reactionTitle").textContent = `${reaction.discarderLabel}打出 ${tileLabel(reaction.tile)}`;
+  $("reactionText").textContent = `你可以选择${reaction.options.includes("gang") ? "杠或" : ""}碰这张牌，也可以直接过。`;
+  const peng = $("reactionPeng");
+  const gang = $("reactionGang");
+  const pass = $("reactionPass");
+  peng.classList.toggle("hidden", !reaction.options.includes("peng"));
+  gang.classList.toggle("hidden", !reaction.options.includes("gang"));
+  for (const button of [peng, gang, pass]) button.disabled = false;
+}
+
+async function chooseReaction(action) {
+  if (state.isAdvancing) return;
+  state.isAdvancing = true;
+  for (const id of ["reactionPeng", "reactionGang", "reactionPass"]) $(id).disabled = true;
+  try {
+    const result = await apiJson("/api/game/reaction", {
+      gameId: state.gameId,
+      collectorId: state.collectorId,
+      action,
+      responseMs: Math.max(0, Math.round(performance.now() - state.reactionStartedAt)),
+    });
+    $("reactionOverlay").classList.add("hidden");
+    handleDynamicObservation(result.observation);
+  } catch (error) {
+    for (const id of ["reactionPeng", "reactionGang", "reactionPass"]) $(id).disabled = false;
+    $("reactionText").innerHTML = `<span class="error">${error.message}</span>`;
+    state.isAdvancing = false;
   }
 }
 
@@ -698,6 +870,8 @@ async function chooseMissingSuit(suit) {
     state.liveTask = result.observation;
     state.tasks = [state.liveTask];
     state.index = 0;
+    state.handOrder = [];
+    state.handManual = false;
     state.startedAt = performance.now();
     show("quiz");
     renderQuestion();
@@ -749,6 +923,8 @@ async function start() {
     state.dynamic = false;
     state.gameId = "";
     state.missingGame = null;
+    state.handOrder = [];
+    state.handManual = false;
     state.startedAt = performance.now();
     state.tasks = requestedTask ? [requestedTask] : selectStaticGame(payload.tasks);
     state.index = 0;
@@ -794,6 +970,19 @@ function init() {
   });
   $("confirm").addEventListener("click", () => recordAnswer(state.selected[0]));
   $("skip").addEventListener("click", () => recordAnswer(null, true));
+  $("sortHand").addEventListener("click", () => {
+    const task = currentTask();
+    if (!task) return;
+    state.handManual = false;
+    state.handOrder = [];
+    state.selected = [];
+    renderHand(task);
+    $("confirm").disabled = true;
+    $("selectedLabel").textContent = "已按万、条、筒自动理牌";
+  });
+  $("reactionPeng").addEventListener("click", () => chooseReaction("peng"));
+  $("reactionGang").addEventListener("click", () => chooseReaction("gang"));
+  $("reactionPass").addEventListener("click", () => chooseReaction("pass"));
   document.querySelectorAll(".suit-choice").forEach((button) => {
     button.addEventListener("click", () => chooseMissingSuit(button.dataset.suit));
   });
@@ -803,6 +992,7 @@ function init() {
   $("missingExit").addEventListener("click", () => {
     state.missingGame = null;
     state.gameId = "";
+    state.dynamic = false;
     show("welcome");
   });
   $("download").addEventListener("click", downloadPayload);
@@ -813,6 +1003,8 @@ function init() {
     state.gameId = "";
     state.liveTask = null;
     state.missingGame = null;
+    state.handOrder = [];
+    state.handManual = false;
     state.sessionId = makeId("session");
     show("welcome");
   });
