@@ -1,5 +1,5 @@
 const STATIC_MIN_GAME_SIZE = 6;
-const TASK_ASSET_VERSION = "20261121-25";
+const TASK_ASSET_VERSION = "20261121-28";
 
 const state = {
   tasks: [],
@@ -28,6 +28,7 @@ const state = {
   lastDrawKey: "",
   coachTimer: 0,
   calloutTimer: 0,
+  feedTimer: 0,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -37,8 +38,8 @@ const suitOrder = { w: 0, t: 1, b: 2 };
 const meldNames = { peng: "碰", gang: "杠", chi: "吃" };
 const experienceModes = {
   beginner: {
-    label: "新手教学",
-    summary: "34 种固定教学局 · 规则讲解 · 有建议",
+    label: "新手陪练",
+    summary: "顺着起手牌找方向 · 规则提示 · 不计采集",
     hintsEnabled: true,
     tutorialEnabled: true,
     fixedDeal: true,
@@ -46,7 +47,7 @@ const experienceModes = {
   },
   intermediate: {
     label: "中等对局",
-    summary: "随机牌局 · 建议与番型提示",
+    summary: "有建议和番型提示 · 每局匿名采集",
     hintsEnabled: true,
     tutorialEnabled: false,
     fixedDeal: false,
@@ -54,7 +55,7 @@ const experienceModes = {
   },
   advanced: {
     label: "高手对局",
-    summary: "随机牌局 · 不显示建议和推理提示",
+    summary: "无提示实战 · 每局匿名采集",
     hintsEnabled: false,
     tutorialEnabled: false,
     fixedDeal: false,
@@ -154,7 +155,7 @@ function modeFor(task = null) {
 function tutorialModeLabel(source, mode) {
   if (!mode.tutorialEnabled || !source?.tutorialName) return mode.label;
   const target = source.tutorialName.split(" · ")[0];
-  return `新手 ${source.tutorialVariant || "?"}/${source.tutorialPoolSize || 34} · ${target}`;
+  return `牌路 · ${target}`;
 }
 
 function updateModeNote() {
@@ -233,15 +234,15 @@ function renderBeginnerGuide() {
   const tutorialName = source?.tutorialName;
   const tutorialTitle = tutorialName?.split(" · ")[0];
   const quiz = $("quiz");
-  $("beginnerGuideStep").textContent = `新手导览 ${state.guideStep + 1} / ${beginnerGuideSteps.length}`;
+  $("beginnerGuideStep").textContent = `牌桌导览 ${state.guideStep + 1} / ${beginnerGuideSteps.length}`;
   $("beginnerGuideTitle").textContent = state.guideStep === 0 && tutorialTitle
-    ? `本课：${tutorialTitle}`
+    ? `这手牌很适合${tutorialTitle}`
     : step.title;
   $("beginnerGuideText").textContent = state.guideStep === 0 && tutorialName
-    ? `本局从 34 个新手种子中抽到「${tutorialName}」。${step.text}`
+    ? `起手牌型很集中，最适合往「${tutorialName}」发展。${step.text}`
     : step.text;
   const dynamicFocus = state.guideStep === 0 && source
-    ? `${tutorialName ? `本课目标：${tutorialName}；` : ""}整副 ${source.totalTiles || 108} 张；牌墙剩余 ${source.initialWallCount || source.wallRemaining || 55} 张。`
+    ? `${tutorialName ? `牌型方向：${tutorialName}；` : ""}整副 ${source.totalTiles || 108} 张；牌墙剩余 ${source.initialWallCount || source.wallRemaining || 55} 张。`
     : step.focus;
   $("beginnerGuideFocus").textContent = dynamicFocus;
   document.querySelector(".guide-dots").innerHTML = beginnerGuideSteps
@@ -395,6 +396,9 @@ function renderRiver(player, position, label) {
   const dense = player.discards.length > 10 || player.melds.length >= 2 ? " dense" : "";
   const empty = player.discards.length === 0 && player.melds.length === 0 ? " empty" : "";
   const compactMelds = position === "left" || position === "right";
+  const countLabel = compactMelds
+    ? `${label} ${player.discards.length}`
+    : `${label} · ${player.discards.length} 张`;
   const discards = player.discards.length
     ? player.discards.map((tile) => miniTile(tile)).join("")
     : `<span class="river-empty">尚未出牌</span>`;
@@ -417,7 +421,7 @@ function renderRiver(player, position, label) {
     : "";
   return `
     <div class="river river-${position}${dense}${empty}">
-      <span class="river-label">${label} · ${player.discards.length} 张</span>
+      <span class="river-label">${countLabel}</span>
       ${melds}
       <div class="river-tiles">${discards}</div>
     </div>
@@ -493,7 +497,7 @@ function renderMissingSuit(observation) {
     $("openingDanmaku").querySelector("em").textContent =
       `整副 ${observation.totalTiles || 108} 张 · 你 ${observation.initialHandCount || 14} 张 · 其他三家各 13 张`;
     $("missingStartEyebrow").textContent =
-      `本课目标：${observation.tutorialName || "新手教学"} · 你的暗手 ${observation.initialHandCount || 14} 张`;
+      `这手牌最适合：${observation.tutorialName || "先看清牌路"} · 暗手 ${observation.initialHandCount || 14} 张`;
   }
   const hand = sortedTiles(observation.hand);
   const counts = {};
@@ -523,7 +527,7 @@ function renderMissingSuit(observation) {
       .join(" · ");
     $("missingStatus").textContent = dealInfo.skyShort
       ? `天缺！起手天然少${dealInfo.naturalMissingNames.join("、")}，三门分布：${distribution}`
-      : `${mode.tutorialEnabled ? "教学局已准备好" : "洗牌完成"}，三门分布：${distribution}。`;
+      : `${mode.tutorialEnabled ? "牌已码好" : "洗牌完成"}，三门分布：${distribution}。`;
     const minimum = Math.min(
       ...["w", "t", "b"].map((suit) => Number(dealInfo.suitCounts?.[suit] ?? 0)),
     );
@@ -531,7 +535,7 @@ function renderMissingSuit(observation) {
       const count = Number(dealInfo.suitCounts?.[button.dataset.suit] ?? 0);
       if (count !== minimum) return;
       button.classList.add("recommended");
-      button.dataset.recommend = mode.tutorialEnabled ? "教学推荐" : "参考";
+      button.dataset.recommend = mode.tutorialEnabled ? "推荐" : "参考";
     });
   } else {
     $("missingStatus").textContent = "请选择你的定缺花色；选定后开始连续打完整局。";
@@ -607,7 +611,7 @@ function renderPlayGuidance(task) {
       <strong>${suggestion ? tileLabel(suggestion.tile) : "自行判断"}</strong>
     </div>
     <div class="guide-plan">
-      <span>${mode.tutorialEnabled ? "本步规则" : "目标牌型 / 可胡"}</span>
+      <span>${mode.tutorialEnabled ? "牌路引导" : "目标牌型 / 可胡"}</span>
       <b>${mode.tutorialEnabled ? task.tutorialTip || "先打定缺牌，再保留连牌和对子。" : fanTarget}</b>
       <em>${mode.tutorialEnabled ? fanTarget : suggestion ? suggestion.reason || "兼顾牌型与风险" : ""}</em>
     </div>
@@ -750,6 +754,7 @@ function animateLatestDraw(task) {
 }
 
 function renderQuestion() {
+  clearFeedTimer();
   const task = currentTask();
   if (!task) return;
   const mode = modeFor(task);
@@ -1067,12 +1072,25 @@ function analyzeActionForBeginner(action) {
   return `${name}${action.type}${tile ? ` ${tile}` : ""}，注意牌桌和牌河的变化。`;
 }
 
-function showAiTurnFeed(actions, next) {
+function clearFeedTimer() {
+  window.clearTimeout(state.feedTimer);
+  state.feedTimer = 0;
+}
+
+function humanHasWon(task) {
+  return Boolean(
+    task?.players?.some((player) => player.player === 0 && player.hasWon)
+    || task?.summary?.winners?.includes(0),
+  );
+}
+
+function showAiTurnFeed(actions, next, { humanWon = false } = {}) {
   $("reactionOverlay").classList.add("hidden");
   if (!actions || !actions.length) {
     next();
     return;
   }
+  clearFeedTimer();
   state.isAdvancing = true;
   hideCoachBubble();
   $("aiTurnOverlay").classList.remove("hidden");
@@ -1086,12 +1104,14 @@ function showAiTurnFeed(actions, next) {
   document.querySelector(".actions").classList.add("dynamic");
   document.querySelector(".actions").classList.add("feed-locked");
   const button = $("aiNext");
-  button.classList.remove("hidden");
+  button.classList.toggle("hidden", humanWon);
   button.disabled = true;
   const card = $("aiTurnOverlay").querySelector(".action-card");
   const tutorial = Boolean(modeFor(state.liveTask || currentTask()).tutorialEnabled);
   let index = 0;
   let locked = true;
+  let finished = false;
+  const actionDelay = actions.length > 6 ? 280 : 430;
   const emphasize = (action) => {
     document.querySelectorAll(".action-emphasis").forEach((node) => {
       node.classList.remove("action-emphasis");
@@ -1101,11 +1121,42 @@ function showAiTurnFeed(actions, next) {
     document.querySelector(`.seat-${position}`)?.classList.add("action-emphasis");
     document.querySelector(`.river-${riverPosition}`)?.classList.add("action-emphasis");
   };
+  const finishFeed = () => {
+    if (finished) return;
+    finished = true;
+    clearFeedTimer();
+    $("aiTurnOverlay").classList.add("hidden");
+    $("aiNext").classList.add("hidden");
+    $("quiz").classList.remove("ai-feed-active");
+    document.querySelector(".actions").classList.remove("feed-locked");
+    state.feedAdvance = null;
+    document.querySelectorAll(".action-emphasis").forEach((node) => {
+      node.classList.remove("action-emphasis");
+    });
+    next();
+  };
+  const schedule = (callback, delay) => {
+    clearFeedTimer();
+    state.feedTimer = window.setTimeout(callback, delay);
+  };
+  const advanceManual = () => {
+    if (humanWon || locked) return;
+    if (index >= actions.length - 1) {
+      finishFeed();
+      return;
+    }
+    index += 1;
+    showCurrent();
+  };
+  state.feedAdvance = advanceManual;
   const showCurrent = () => {
     if (index >= actions.length) {
-      button.disabled = false;
-      button.textContent = "继续";
-      $("aiActionNow").innerHTML = `<strong>全部行动已看完，轮到你继续</strong>`;
+      if (humanWon) schedule(finishFeed, 260);
+      else {
+        button.disabled = false;
+        button.textContent = "继续";
+        $("aiActionNow").innerHTML = `<strong>全部行动已看完，轮到你继续</strong>`;
+      }
       return;
     }
     const action = actions[index];
@@ -1114,8 +1165,9 @@ function showAiTurnFeed(actions, next) {
     const tileCount = action.type === "peng" ? 3 : action.type === "gang" ? 4 : 1;
     emphasize(action);
     card.className = `action-card${tutorial ? " tutorial-action" : ""} action-${action.type}`;
-    document.querySelector(".turn-copy b").textContent =
-      `${action.playerLabel || `P${action.player}`} · ${typeNames[action.type] || action.type}`;
+    document.querySelector(".turn-copy b").textContent = humanWon
+      ? `你已胡牌 · ${action.playerLabel || "对手"}自动行动`
+      : `${action.playerLabel || `P${action.player}`} · ${typeNames[action.type] || action.type}`;
     $("aiActionNow").innerHTML = `
       <span class="action-avatar">${action.playerLabel?.slice(0, 1) || "家"}</span>
       <span class="action-copy"><b>${action.playerLabel || `P${action.player}`}</b><strong>${typeNames[action.type] || action.type}</strong></span>
@@ -1124,11 +1176,17 @@ function showAiTurnFeed(actions, next) {
     `;
     bindTileImages($("aiActionNow"));
     const coach = $("aiActionCoach");
-    if (tutorial) {
+    if (humanWon) {
+      coach.classList.remove("hidden");
+      coach.innerHTML = `
+        <span class="coach-avatar" aria-hidden="true">和</span>
+        <p><b>自动过牌</b>你已经胡牌，其他三家会继续自动行动，不需要逐条确认。</p>
+      `;
+    } else if (tutorial) {
       coach.classList.remove("hidden");
       coach.innerHTML = `
         <span class="coach-avatar" aria-hidden="true">教</span>
-        <p><b>助教分析</b>${analyzeActionForBeginner(action)}</p>
+        <p><b>牌路观察</b>${analyzeActionForBeginner(action)}</p>
       `;
     } else {
       coach.classList.add("hidden");
@@ -1145,44 +1203,44 @@ function showAiTurnFeed(actions, next) {
       return `<div class="ai-action${itemIndex === index ? " current" : ""}"><b>${itemIndex + 1}</b><strong>${text}</strong></div>`;
     }).join("");
     $("aiActionList").innerHTML = history;
-    button.disabled = true;
-    locked = true;
-    button.textContent = `下一条 ${index + 1}/${actions.length}`;
-    window.setTimeout(() => {
-      locked = false;
-      button.disabled = false;
-      button.textContent = index + 1 < actions.length
-        ? `下一条 ${index + 2}/${actions.length}`
-        : "继续出牌";
-    }, 650);
-  };
-  state.feedAdvance = () => {
-    if (locked) return;
-    index += 1;
-    if (index >= actions.length) {
-      $("aiTurnOverlay").classList.add("hidden");
-      $("aiNext").classList.add("hidden");
-      $("quiz").classList.remove("ai-feed-active");
-      document.querySelector(".actions").classList.remove("feed-locked");
-      state.feedAdvance = null;
-      document.querySelectorAll(".action-emphasis").forEach((node) => {
-        node.classList.remove("action-emphasis");
-      });
-      next();
-      return;
+    if (humanWon) {
+      button.disabled = true;
+      button.classList.add("hidden");
+      schedule(() => {
+        if (index >= actions.length - 1) finishFeed();
+        else {
+          index += 1;
+          showCurrent();
+        }
+      }, actionDelay);
+    } else {
+      button.disabled = true;
+      locked = true;
+      button.textContent = "下一条";
+      schedule(() => {
+        locked = false;
+        button.disabled = false;
+        button.textContent = index + 1 < actions.length
+          ? `下一条 ${index + 2}/${actions.length}`
+          : "继续出牌";
+      }, 650);
     }
-    showCurrent();
   };
   showCurrent();
 }
 
 function handleDynamicObservation(observation) {
   state.liveTask = observation;
+  const humanWon = humanHasWon(observation);
   const actions = (observation.recentActions || []).filter(
-    (action) => !(action.player === 0 && action.type === "discard"),
+    (action) => !(action.player === 0 && (action.type === "discard" || humanWon)),
   );
   if (actions.length) {
-    showAiTurnFeed(actions, () => finishDynamicObservation(observation));
+    showAiTurnFeed(
+      actions,
+      () => finishDynamicObservation(observation),
+      { humanWon },
+    );
   } else {
     finishDynamicObservation(observation);
   }
@@ -1200,7 +1258,7 @@ function showReactionPrompt(reaction) {
     <span class="reaction-tile">${miniTile(reaction.tile)}</span>
     <span>
       你可以选择${reaction.options.includes("gang") ? "杠或" : ""}碰这张牌，也可以直接过。
-      ${mode.tutorialEnabled ? "<br><b>教学：</b>碰或杠以后，你还要亲手补打一张。" : ""}
+      ${mode.tutorialEnabled ? "<br><b>牌路：</b>碰或杠以后，你还要亲手补打一张。" : ""}
       ${mode.tutorialEnabled && reaction.tutorialHint ? `<br><strong class="reaction-coach">${reaction.tutorialHint}</strong>` : ""}
     </span>
   `;
@@ -1251,7 +1309,7 @@ function showWinPrompt(win) {
         ${mine.labels?.length ? `<br>${mine.labels.join(" · ")}` : ""}
         <br>本次胡牌预计 ${mine.points || 1} 分，是否现在胡牌？
       ` : "你已经满足胡牌条件，是否现在胡牌？"}
-      ${mode.tutorialEnabled ? "<br><b>教学：</b>选“胡”结束你的牌局，选“过”则继续打这一张。" : ""}
+      ${mode.tutorialEnabled ? "<br><b>牌路：</b>选“胡”收下这局，选“过”则继续打这一张。" : ""}
     </span>
   `;
   bindTileImages($("reactionText"));
@@ -1337,7 +1395,7 @@ function finishDynamicGame(observation) {
   $("doneKicker").textContent = tutorial ? "本局结算 · 教学" : "本局结算";
   $("doneTitle").textContent = "本局打完了";
   $("doneText").textContent = tutorial
-    ? `本课「${observation.tutorialName || "新手教学"}」完成，共出牌 ${decisionsThisGame} 次。本次练习不计入正式采集，下一局会重新计数。`
+    ? `这手「${observation.tutorialName || "牌型练习"}」已经打成，共出牌 ${decisionsThisGame} 次。本次练习不计入正式采集，下一局会重新计数。`
     : collectionEligible
       ? `本局已单独保存，共出牌 ${decisionsThisGame} 次；下一局会重新计数，不累计到本页。`
       : `本局共出牌 ${decisionsThisGame} 次。本模式不计入正式采集，下一局会重新计数。`;
@@ -1353,8 +1411,8 @@ function finishDynamicGame(observation) {
     </div>
     ${tutorial ? `
       <div class="tutorial-reward" style="grid-column:1/-1">
-        <span>本局学会</span>
-        <b>${observation.tutorialName || "新手教学"} · 庄家先手 · 定缺 · 摸打 · 碰杠胡</b>
+        <span>打成的牌路</span>
+        <b>${observation.tutorialName || "牌型练习"} · 庄家先手 · 定缺 · 摸打 · 碰杠胡</b>
       </div>
     ` : ""}
   `;
@@ -1379,7 +1437,7 @@ async function finish() {
   if (mode.tutorialEnabled) {
     $("doneKicker").textContent = "本局结算 · 教学";
     $("doneTitle").textContent = "本局打完了";
-    $("doneText").textContent = "新手教学完成。本次练习不计入正式采集，下一步去中等局实战。";
+    $("doneText").textContent = "这局牌型练习完成。本次不计入正式采集，下一步去中等局实战。";
     $("summary").innerHTML += `
       <div style="grid-column:1/-1">
         <span>数据状态</span>
@@ -1549,7 +1607,7 @@ async function chooseMissingSuit(suit) {
     state.lastDrawKey = "";
     state.startedAt = performance.now();
     show("quiz");
-    renderQuestion();
+    handleDynamicObservation(result.observation);
     if (modeFor(result.observation).tutorialEnabled && !state.guideSeen) {
       window.setTimeout(() => openBeginnerGuide(0), 320);
     }
