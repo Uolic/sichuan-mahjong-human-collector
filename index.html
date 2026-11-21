@@ -9,7 +9,7 @@
   <title>四川麻将出牌采集</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20261121-22">
+  <link rel="stylesheet" href="styles.css?v=20261121-23">
 </head>
 <body>
   <main id="app">
@@ -20,9 +20,9 @@
         <h1>坐上来，<br>帮我打一手牌</h1>
         <p>从亲自定缺开始，连续打完整局。每次出牌都会真正改变牌河、副露和后续手牌。</p>
         <div class="hero-tiles" aria-hidden="true">
-          <img class="hero-tile" src="tiles_cn/w5.jpg?v=20261121-22" alt="">
-          <img class="hero-tile" src="tiles_cn/t7.jpg?v=20261121-22" alt="">
-          <img class="hero-tile" src="tiles_cn/b5.jpg?v=20261121-22" alt="">
+          <img class="hero-tile" src="tiles_cn/w5.jpg?v=20261121-23" alt="">
+          <img class="hero-tile" src="tiles_cn/t7.jpg?v=20261121-23" alt="">
+          <img class="hero-tile" src="tiles_cn/b5.jpg?v=20261121-23" alt="">
         </div>
       </div>
       <div class="card welcome-card">
@@ -40,6 +40,7 @@
           </select>
         </label>
         <p id="modeNote" class="mode-note"></p>
+        <button id="welcomeGuide" class="guide-link hidden" type="button">先看怎么玩 · 30 秒新手指南</button>
         <label class="consent">
           <input type="checkbox" id="consent">
           <span>我知道只记录手牌、选择、思考时间和对局信息；不会收集姓名、手机号或位置。</span>
@@ -62,10 +63,22 @@
           <span>余牌</span>
         </div>
       </header>
+      <div id="openingDanmaku" class="coach-marquee opening-marquee hidden" aria-live="polite">
+        <span class="marquee-spark" aria-hidden="true">✦</span>
+        <div>
+          <b>你是庄家，你先出牌</b>
+          <em>整副 108 张 · 你 14 张 · 其他三家各 13 张</em>
+        </div>
+      </div>
       <section class="missing-suit-card">
         <span class="eyebrow">本局从你的 14 张手牌开始</span>
         <h2>选择要定缺的花色</h2>
         <p>定缺后整局固定不变。缺门牌要优先打出，碰杠也不能选择缺门。</p>
+        <div id="openingFacts" class="opening-facts hidden" aria-label="开局牌数">
+          <span><b id="openingTotalTiles">108</b><small>整副牌</small></span>
+          <span><b id="openingHandCount">14</b><small>你的手牌</small></span>
+          <span><b id="openingWallCount">55</b><small>牌墙剩余</small></span>
+        </div>
         <p id="missingLesson" class="mode-lesson" aria-live="polite"></p>
         <div id="missingHand" class="missing-hand" aria-label="本局起手牌"></div>
         <div class="suit-choices" aria-label="选择定缺花色">
@@ -90,12 +103,20 @@
         </div>
       </header>
       <div class="progress"><i id="progressBar"></i></div>
+      <div id="beginnerMarquee" class="coach-marquee quiz-marquee hidden" aria-live="polite">
+        <span class="marquee-spark" aria-hidden="true">✦</span>
+        <div>
+          <b>庄家第一手：先打 1 张</b>
+          <em>之后每轮摸 1 张、打 1 张；红点是定缺牌</em>
+        </div>
+      </div>
 
       <section class="table-shell" aria-label="麻将牌桌">
         <div class="table-rim">
           <div class="table-felt">
             <div class="felt-glow" aria-hidden="true"></div>
             <div id="tableInfo" class="table-players"></div>
+            <div id="tableCallout" class="table-callout hidden" aria-live="polite"></div>
           </div>
         </div>
       </section>
@@ -103,11 +124,17 @@
       <div id="aiTurnOverlay" class="ai-inline hidden" aria-live="polite">
         <div class="action-card">
           <div id="aiActionNow" class="action-now"></div>
+          <div id="aiActionCoach" class="action-coach hidden" aria-live="polite"></div>
+          <button id="aiNext" class="primary ai-next" type="button">下一条</button>
           <div id="aiActionList" class="action-list"></div>
         </div>
       </div>
 
       <section class="hand-dock">
+        <div id="coachBubble" class="coach-bubble hidden" aria-live="polite">
+          <span class="coach-avatar" aria-hidden="true">教</span>
+          <p id="coachText"></p>
+        </div>
         <div class="turn-line">
           <div class="turn-copy">
             <span class="turn-dot"></span>
@@ -115,6 +142,7 @@
           </div>
           <div class="hand-tools">
             <span id="selectedLabel" aria-live="polite">点一张手牌</span>
+            <button id="guideReopen" class="text-button hidden" type="button">指南</button>
             <button id="sortHand" class="text-button" type="button">理牌</button>
           </div>
         </div>
@@ -158,6 +186,30 @@
       </div>
     </section>
   </main>
+
+  <div id="beginnerGuideOverlay" class="guide-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="beginnerGuideTitle">
+    <div id="guideSpotlight" class="guide-spotlight hidden" aria-hidden="true">
+      <span id="guideSpotlightLabel"></span>
+    </div>
+    <div class="guide-card">
+      <div class="guide-card-top">
+        <span class="guide-seal" aria-hidden="true">教</span>
+        <div>
+          <span id="beginnerGuideStep" class="eyebrow">新手导览 1 / 7</span>
+          <h2 id="beginnerGuideTitle">先认识这一局</h2>
+        </div>
+      </div>
+      <p id="beginnerGuideText"></p>
+      <div id="beginnerGuideFocus" class="guide-focus"></div>
+      <div class="guide-dots" aria-hidden="true"></div>
+      <div class="guide-actions">
+        <button id="beginnerGuidePrev" class="ghost" type="button">上一步</button>
+        <button id="beginnerGuideNext" class="primary" type="button">下一课</button>
+      </div>
+      <button id="beginnerGuideClose" class="guide-skip" type="button">直接开局</button>
+    </div>
+  </div>
+
   <div id="loadingOverlay" class="loading-overlay hidden" role="status" aria-live="polite">
     <div class="loading-card">
       <span class="loading-tile" aria-hidden="true">東</span>
@@ -165,6 +217,6 @@
       <span id="loadingText">第一次进入需要准备牌桌，请稍等几秒。</span>
     </div>
   </div>
-  <script src="app.js?v=20261121-22"></script>
+  <script src="app.js?v=20261121-23"></script>
 </body>
 </html>
