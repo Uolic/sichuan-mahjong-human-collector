@@ -1546,7 +1546,7 @@ select {
   .actions .ghost,
   .actions .primary { min-height: 42px; }
   .mahjong-tile { border-radius: 7px; padding: 4px 2px 3px; }
-  .actions .ghost, .actions .primary { min-height: 44px; }
+  .actions .ghost, .actions .primary { min-height: 42px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
