@@ -34,37 +34,117 @@ function tileLabel(tile) {
   return `${tile[0]}${suitNames[tile[1]] || tile[1]}`;
 }
 
+const dotLayouts = {
+  2: [[50, 42], [50, 98]],
+  3: [[30, 42], [50, 70], [70, 98]],
+  4: [[32, 48], [68, 48], [32, 92], [68, 92]],
+  5: [[31, 42], [69, 42], [50, 70], [31, 98], [69, 98]],
+  6: [[32, 38], [68, 38], [32, 70], [68, 70], [32, 102], [68, 102]],
+  7: [[24, 32], [50, 32], [76, 32], [32, 68], [68, 68], [32, 104], [68, 104]],
+  8: [[31, 28], [69, 28], [31, 55], [69, 55], [31, 82], [69, 82], [31, 109], [69, 109]],
+  9: [[24, 30], [50, 30], [76, 30], [24, 68], [50, 68], [76, 68], [24, 106], [50, 106], [76, 106]],
+};
+
+const bambooLayouts = {
+  2: [[50, 42]],
+  3: [[50, 30], [39, 85], [61, 85]],
+  4: [[31, 38], [69, 38], [31, 82], [69, 82]],
+  5: [[34, 28], [66, 28], [50, 56], [34, 96], [66, 96]],
+  6: [[30, 28], [70, 28], [30, 62], [70, 62], [30, 96], [70, 96]],
+  7: [[24, 27], [50, 27], [76, 27], [36, 65], [64, 65], [36, 102], [64, 102]],
+  8: [[31, 24], [69, 24], [31, 50], [69, 50], [31, 76], [69, 76], [31, 102], [69, 102]],
+  9: [[24, 24], [50, 24], [76, 24], [24, 63], [50, 63], [76, 63], [24, 102], [50, 102], [76, 102]],
+};
+
+function dotFace(number) {
+  const colors = ["#b73531", "#18734f", "#256c94"];
+  if (number === 1) {
+    return `
+      <g transform="translate(50 70)">
+        <circle r="30" fill="#f4ead4" stroke="#235f82" stroke-width="4"/>
+        <circle r="21" fill="#f7f0df" stroke="#b63431" stroke-width="5"/>
+        <circle r="11" fill="none" stroke="#1f7652" stroke-width="4"/>
+        <circle r="4" fill="#245f83"/>
+      </g>
+    `;
+  }
+  return dotLayouts[number].map(([x, y], index) => {
+    const color = colors[index % colors.length];
+    return `
+      <g transform="translate(${x} ${y})">
+        <circle r="10" fill="#f5ecd9" stroke="${color}" stroke-width="3"/>
+        <circle r="4.5" fill="${color}"/>
+        <circle cx="-2.8" cy="-2.8" r="1.2" fill="#fff8e9" opacity=".9"/>
+      </g>
+    `;
+  }).join("");
+}
+
+function bambooBar(x, y, color, angle = 0) {
+  return `
+    <g transform="translate(${x} ${y}) rotate(${angle})">
+      <rect x="-4.2" y="-14" width="8.4" height="28" rx="4" fill="${color}"/>
+      <rect x="-4.2" y="-3.5" width="8.4" height="4" rx="2" fill="#f2dfb8" opacity=".7"/>
+      <circle cy="0" r="1.2" fill="#f8edcf"/>
+    </g>
+  `;
+}
+
+function bambooFace(number) {
+  if (number === 1) {
+    return `
+      <path d="M42 98 C28 87 27 70 38 59 C48 48 66 47 76 59 C85 70 79 88 65 97 C58 102 49 102 42 98Z"
+        fill="#1d7652" stroke="#124a38" stroke-width="2"/>
+      <path d="M45 58 C51 44 63 37 72 32 L66 54Z" fill="#b53b34"/>
+      <path d="M71 75 L91 91 L77 91 L64 83Z" fill="#1a6549"/>
+      <path d="M40 78 C30 88 30 100 35 111 C42 104 45 96 49 88Z" fill="#b53b34"/>
+      <circle cx="61" cy="62" r="3.3" fill="#fff7e8"/>
+      <circle cx="61" cy="62" r="1.6" fill="#20251f"/>
+      <path d="M42 86 L58 91" stroke="#f6d88a" stroke-width="3" stroke-linecap="round"/>
+    `;
+  }
+  const coordinates = number === 2
+    ? [[38, 70], [62, 70]]
+    : bambooLayouts[number];
+  return coordinates.map(([x, y], index) => {
+    const color = index === 1 || index === 4 ? "#b53b34" : "#1b7952";
+    return bambooBar(x, y, color, index % 2 ? -4 : 4);
+  }).join("");
+}
+
+function tileSvg(tile) {
+  const number = Number(tile[0]);
+  const suit = tile[1];
+  let art = "";
+  if (suit === "w") {
+    art = `
+      <text x="50" y="58" text-anchor="middle" font-family="KaiTi, STKaiti, serif"
+        font-size="43" font-weight="700" fill="#b1322d">${chineseNumbers[number]}</text>
+      <text x="50" y="109" text-anchor="middle" font-family="KaiTi, STKaiti, serif"
+        font-size="40" font-weight="700" fill="#173d31">萬</text>
+    `;
+  } else if (suit === "t") {
+    art = bambooFace(number);
+  } else {
+    art = dotFace(number);
+  }
+  return `
+    <svg class="tile-art-svg" viewBox="0 0 100 140" aria-hidden="true" focusable="false">
+      ${art}
+    </svg>
+  `;
+}
+
 function miniTile(tile, className = "") {
-  return `<span class="mini-tile suit-${tile[1]} ${className}" title="${tileLabel(tile)}"><b>${tile[0]}</b><small>${suitNames[tile[1]] || tile[1]}</small></span>`;
+  return `
+    <span class="mini-tile suit-${tile[1]} ${className}" title="${tileLabel(tile)}" aria-label="${tileLabel(tile)}">
+      ${tileSvg(tile)}
+    </span>
+  `;
 }
 
 function concealedHand(count = 13) {
   return Array.from({ length: count }, () => '<i class="tile-back"></i>').join("");
-}
-
-function tileFace(tile) {
-  const number = Number(tile[0]);
-  const suit = tile[1];
-  if (suit === "w") {
-    return `
-      <span class="face-wan">
-        <b>${chineseNumbers[number]}</b>
-        <small>萬</small>
-      </span>
-    `;
-  }
-  if (suit === "t") {
-    const bars = Array.from({ length: number }, () => "<i></i>").join("");
-    return `
-      <span class="face-tiao">
-        <b>${number}</b>
-        <small>索</small>
-        <span class="bamboo-bars" aria-hidden="true">${bars}</span>
-      </span>
-    `;
-  }
-  const dots = Array.from({ length: number }, () => "<i></i>").join("");
-  return `<span class="face-dots count-${number}" aria-hidden="true">${dots}</span>`;
 }
 
 function playerByIndex(task, index) {
@@ -76,13 +156,14 @@ function renderMelds(player, compact = false) {
     <span class="meld-chip">
       <b>${meldNames[meld.kind] || meld.kind}</b>
       ${meld.tiles.map((tile) => compact
-        ? `<span class="meld-mini suit-${tile[1]}" title="${tileLabel(tile)}">${tile[0]}</span>`
+        ? miniTile(tile, "meld-mini")
         : miniTile(tile)).join("")}
     </span>
   `).join("");
 }
 
 function renderRiver(player, position, label) {
+  const dense = player.discards.length > 10 || player.melds.length >= 2 ? " dense" : "";
   const discards = player.discards.length
     ? player.discards.map((tile) => miniTile(tile)).join("")
     : `<span class="river-empty">尚未出牌</span>`;
@@ -95,7 +176,7 @@ function renderRiver(player, position, label) {
       `).join("")}</div>`
     : "";
   return `
-    <div class="river river-${position}">
+    <div class="river river-${position}${dense}">
       <span class="river-label">${label} · ${player.discards.length} 张</span>
       ${melds}
       <div class="river-tiles">${discards}</div>
@@ -192,15 +273,14 @@ function renderQuestion() {
   const used = {};
   $("hand").innerHTML = task.hand.map((tile, index) => {
     used[tile] = (used[tile] || 0) + 1;
-    const suit = suitNames[tile[1]] || tile[1];
     const duplicate = counts[tile] > 1 ? `<span class="tile-count">${used[tile]}</span>` : "";
     const missing = tile[1] === task.missingSuit ? " missing" : "";
     const order = counts[tile] > 1 ? `，第${used[tile]}张` : "";
     const aria = `${tileLabel(tile)}${order}${missing ? "，定缺牌" : ""}`;
     return `
       <button class="mahjong-tile${missing}" data-index="${index}" data-tile="${tile}" aria-label="${aria}" aria-pressed="false">
-        <span class="tile-face">${tileFace(tile)}</span>
-        <span class="tile-bottom">${suit}${duplicate}</span>
+        <span class="tile-face">${tileSvg(tile)}</span>
+        ${duplicate}
       </button>
     `;
   }).join("");
@@ -307,7 +387,11 @@ async function start() {
   const response = await fetch("./tasks.json");
   if (!response.ok) throw new Error("无法加载 tasks.json");
   const payload = await response.json();
-  state.tasks = shuffle(payload.tasks).slice(0, SESSION_SIZE);
+  const requestedTaskId = new URLSearchParams(window.location.search).get("task");
+  const requestedTask = requestedTaskId
+    ? payload.tasks.find((task) => task.id === requestedTaskId)
+    : null;
+  state.tasks = requestedTask ? [requestedTask] : shuffle(payload.tasks).slice(0, SESSION_SIZE);
   show("quiz");
   renderQuestion();
 }

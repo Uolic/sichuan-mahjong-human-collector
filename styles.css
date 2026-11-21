@@ -347,7 +347,7 @@ select {
 }
 .table-felt {
   position: relative;
-  height: clamp(285px, 42dvh, 430px);
+  height: clamp(320px, 46dvh, 440px);
   overflow: hidden;
   border-radius: 24px;
   background:
@@ -439,7 +439,7 @@ select {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.seat-self { bottom: 7px; left: 50%; transform: translateX(-50%); }
+.seat-self { right: 7px; bottom: 7px; left: auto; transform: none; }
 .seat.self .seat-avatar { background: linear-gradient(145deg, #78deb3, #147153); color: white; }
 
 .concealed-hand {
@@ -482,12 +482,13 @@ select {
 
 .river-board {
   position: absolute;
-  inset: 62px 61px 54px;
+  inset: 66px 61px 58px;
   z-index: 3;
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr) 54px;
-  grid-template-rows: minmax(50px, .9fr) minmax(54px, .62fr) minmax(50px, .9fr);
+  grid-template-rows: minmax(78px, 94px) minmax(24px, 1fr) minmax(78px, 94px);
   gap: 4px 6px;
+  min-height: 0;
 }
 .river-board::before {
   content: "";
@@ -504,24 +505,40 @@ select {
   position: relative;
   z-index: 3;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 4px;
+  border: 1px solid rgba(255, 238, 195, .08);
+  border-radius: 9px;
+  background: rgba(1, 30, 22, .15);
   color: rgba(237, 255, 248, .8);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, .07);
 }
-.river-top { grid-area: 1 / 2; align-self: end; }
-.river-bottom { grid-area: 3 / 2; align-self: start; }
+.river-top { grid-area: 1 / 2; align-self: stretch; }
+.river-bottom { grid-area: 3 / 2; align-self: stretch; }
 .river-left { grid-area: 1 / 1 / 4 / 2; align-self: center; }
 .river-right { grid-area: 1 / 3 / 4 / 4; align-self: center; text-align: right; }
 .river-label {
-  display: block;
-  margin-bottom: 3px;
-  color: rgba(220, 250, 238, .54);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 12px;
+  margin-bottom: 2px;
+  padding: 1px 2px;
+  border-radius: 4px;
+  background: rgba(0, 25, 18, .2);
+  color: rgba(232, 255, 246, .68);
   font-size: 8px;
   letter-spacing: .08em;
 }
+.river-right .river-label { flex-direction: row-reverse; }
 .river-melds {
   display: flex;
   flex-wrap: wrap;
   gap: 2px;
   margin-bottom: 3px;
+  padding-bottom: 3px;
+  border-bottom: 1px dashed rgba(255, 232, 179, .16);
 }
 .river-right .river-melds { justify-content: flex-end; }
 .river-meld {
@@ -539,31 +556,45 @@ select {
   font-weight: 800;
 }
 .river-meld .mini-tile { width: 14px; height: 19px; border-radius: 3px; }
-.river-meld .mini-tile b { font-size: 7px; }
-.river-meld .mini-tile small { font-size: 4px; }
 .river-tiles { display: flex; flex-wrap: wrap; gap: 2px; }
 .river-bottom .river-tiles { justify-content: flex-end; }
 .river-top .river-tiles { justify-content: center; }
 .river-left .river-tiles,
 .river-right .river-tiles {
   display: grid;
-  grid-template-columns: repeat(3, 16px);
+  grid-template-columns: repeat(3, 14px);
   gap: 2px;
 }
+.river-top .mini-tile,
+.river-bottom .mini-tile { width: 17px; height: 21px; }
+.river-top .river-meld .mini-tile,
+.river-bottom .river-meld .mini-tile,
+.river-left .river-meld .mini-tile,
+.river-right .river-meld .mini-tile { width: 12px; height: 16px; }
+.river.dense .river-label { font-size: 7px; }
+.river-top.dense .mini-tile,
+.river-bottom.dense .mini-tile { width: 12px; height: 16px; border-radius: 2px; }
+.river-top.dense .river-tiles,
+.river-bottom.dense .river-tiles { gap: 1px; }
+.river-top.dense .river-meld .mini-tile,
+.river-bottom.dense .river-meld .mini-tile { width: 10px; height: 14px; }
+.river-left.dense .river-tiles,
+.river-right.dense .river-tiles { grid-template-columns: repeat(3, 12px); gap: 1px; }
+.river-left.dense .mini-tile,
+.river-right.dense .mini-tile { width: 12px; height: 17px; }
+.river-left.dense .river-meld .mini-tile,
+.river-right.dense .river-meld .mini-tile { width: 10px; height: 14px; }
 .river-right .river-tiles { justify-content: end; }
 .river-left .mini-tile,
-.river-right .mini-tile { width: 16px; height: 22px; }
-.river-left .mini-tile b,
-.river-right .mini-tile b { font-size: 8px; }
-.river-left .mini-tile small,
-.river-right .mini-tile small { font-size: 5px; }
+.river-right .mini-tile { width: 14px; height: 20px; }
 .mini-tile {
   display: inline-flex;
   width: 19px;
   height: 24px;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  padding: 1px;
   border: 1px solid #d6cdb9;
   border-bottom-width: 2px;
   border-radius: 3px;
@@ -576,11 +607,10 @@ select {
   line-height: 1;
   box-shadow: 0 2px 0 rgba(84, 73, 49, .25), 0 3px 5px rgba(0, 0, 0, .2);
 }
-.mini-tile b { font-size: 9px; line-height: 1; }
-.mini-tile small { margin-top: 1px; font-size: 5px; font-weight: 700; line-height: 1; }
 .mini-tile.suit-w { color: var(--red); }
 .mini-tile.suit-t { color: var(--green); }
 .mini-tile.suit-b { color: var(--blue); }
+.mini-tile .tile-art-svg { width: 100%; height: 100%; }
 .river-empty { color: rgba(225, 252, 241, .33); font-size: 9px; }
 .wall-stack {
   position: absolute;
@@ -704,9 +734,6 @@ select {
   font-weight: 900;
   box-shadow: 0 1px 0 #c8bfae;
 }
-.meld-mini.suit-w { color: var(--red); }
-.meld-mini.suit-t { color: var(--green); }
-.meld-mini.suit-b { color: var(--blue); }
 
 .hand {
   position: relative;
@@ -808,21 +835,15 @@ select {
   flex: 1;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  padding: 2px 2px 1px;
 }
-.tile-bottom {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  min-height: 14px;
-  color: #6b6b61;
-  font-size: clamp(8px, 2.2vw, 10px);
-  font-weight: 700;
-  white-space: nowrap;
-}
+.tile-art-svg { display: block; width: 100%; height: 100%; }
 .tile-count {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  z-index: 3;
   display: inline-grid;
   min-width: 12px;
   height: 12px;
@@ -831,53 +852,6 @@ select {
   background: #7f847f;
   color: white;
   font-size: 7px;
-}
-.face-wan {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: #ad302b;
-  font-family: "STKaiti", "KaiTi", serif;
-  line-height: .78;
-}
-.face-wan b { font-size: clamp(22px, 6vw, 32px); }
-.face-wan small { margin-top: 5px; font-size: clamp(12px, 3.4vw, 17px); font-weight: 900; }
-.face-tiao {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: #19734d;
-  font-family: "STKaiti", "KaiTi", serif;
-  line-height: .85;
-}
-.face-tiao b { font-size: clamp(22px, 6vw, 31px); }
-.face-tiao small { margin-top: 3px; font-size: clamp(10px, 2.8vw, 14px); font-weight: 900; }
-.bamboo-bars { display: grid; grid-template-columns: repeat(3, 3px); gap: 2px; margin-top: 3px; }
-.bamboo-bars i { display: block; width: 3px; height: 6px; border-radius: 2px; background: #2e8a5f; }
-.face-dots {
-  display: grid;
-  width: 72%;
-  max-width: 30px;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 3px;
-  place-items: center;
-}
-.face-dots.count-1 { grid-template-columns: 1fr; }
-.face-dots.count-2,
-.face-dots.count-3,
-.face-dots.count-4 { grid-template-columns: repeat(2, 1fr); }
-.face-dots i {
-  display: block;
-  width: clamp(5px, 1.5vw, 8px);
-  aspect-ratio: 1;
-  border: 1px solid #1e5e88;
-  border-radius: 50%;
-  background: radial-gradient(circle at 33% 30%, #f7fff9 0 18%, #5ba087 20% 56%, #206d73 58%);
-  box-shadow: 0 1px 1px rgba(0, 0, 0, .12);
-}
-.face-dots.count-1 i {
-  width: clamp(13px, 4vw, 20px);
-  background: radial-gradient(circle at 33% 30%, #fff 0 13%, #9e443b 15% 28%, #f0eee3 30% 40%, #2f7795 42% 72%, #1c5a75 74%);
 }
 
 .play-hint {
@@ -927,7 +901,7 @@ select {
   .actions { grid-template-columns: .55fr 1fr; }
 }
 @media (max-width: 699px) {
-  .table-felt { height: clamp(285px, 39dvh, 380px); }
+  .table-felt { height: clamp(320px, 43dvh, 405px); }
   .hand-dock { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
   .actions {
     position: fixed;
@@ -947,7 +921,7 @@ select {
   }
 }
 @media (max-height: 720px) {
-  .table-felt { height: 276px; }
+  .table-felt { height: 310px; }
   .hand { gap: 6px 3px; }
   .mahjong-tile { border-radius: 7px; padding: 4px 2px 3px; }
   .actions .ghost, .actions .primary { min-height: 44px; }
