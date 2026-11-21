@@ -1,5 +1,5 @@
 const STATIC_MIN_GAME_SIZE = 6;
-const TASK_ASSET_VERSION = "20261121-16";
+const TASK_ASSET_VERSION = "20261121-17";
 
 const state = {
   tasks: [],
@@ -686,7 +686,11 @@ function showReactionPrompt(reaction) {
   $("aiTurnOverlay").classList.add("hidden");
   $("reactionOverlay").classList.remove("hidden");
   $("reactionTitle").textContent = `${reaction.discarderLabel}打出 ${tileLabel(reaction.tile)}`;
-  $("reactionText").textContent = `你可以选择${reaction.options.includes("gang") ? "杠或" : ""}碰这张牌，也可以直接过。`;
+  $("reactionText").innerHTML = `
+    <span class="reaction-tile">${miniTile(reaction.tile)}</span>
+    <span>你可以选择${reaction.options.includes("gang") ? "杠或" : ""}碰这张牌，也可以直接过。</span>
+  `;
+  bindTileImages($("reactionText"));
   const peng = $("reactionPeng");
   const gang = $("reactionGang");
   const pass = $("reactionPass");

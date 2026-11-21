@@ -1228,6 +1228,20 @@ select {
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
+.reaction-card #reactionText {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 13px;
+  background: rgba(231, 215, 185, .35);
+}
+.reaction-tile .mini-tile {
+  width: 44px;
+  height: 61px;
+  border-width: 1px 1px 3px;
+  box-shadow: 0 3px 0 rgba(84, 73, 49, .25), 0 7px 12px rgba(0, 0, 0, .16);
+}
 .reaction-actions button { min-height: 48px; }
 .reaction-actions .hidden { display: none !important; }
 @keyframes action-in {
