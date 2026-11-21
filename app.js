@@ -1,5 +1,5 @@
 const STATIC_MIN_GAME_SIZE = 6;
-const TASK_ASSET_VERSION = "20261121-24";
+const TASK_ASSET_VERSION = "20261121-25";
 
 const state = {
   tasks: [],
@@ -38,7 +38,7 @@ const meldNames = { peng: "碰", gang: "杠", chi: "吃" };
 const experienceModes = {
   beginner: {
     label: "新手教学",
-    summary: "固定教学局 · 规则讲解 · 有建议",
+    summary: "34 种固定教学局 · 规则讲解 · 有建议",
     hintsEnabled: true,
     tutorialEnabled: true,
     fixedDeal: true,
@@ -151,6 +151,12 @@ function modeFor(task = null) {
   return { ...local, ...(task?.mode || {}) };
 }
 
+function tutorialModeLabel(source, mode) {
+  if (!mode.tutorialEnabled || !source?.tutorialName) return mode.label;
+  const target = source.tutorialName.split(" · ")[0];
+  return `新手 ${source.tutorialVariant || "?"}/${source.tutorialPoolSize || 34} · ${target}`;
+}
+
 function updateModeNote() {
   const mode = modeFor();
   $("modeNote").textContent = mode.summary;
@@ -224,12 +230,18 @@ function renderBeginnerGuide() {
   state.guideRenderToken = renderToken;
   const step = beginnerGuideSteps[state.guideStep] || beginnerGuideSteps[0];
   const source = guideSource();
+  const tutorialName = source?.tutorialName;
+  const tutorialTitle = tutorialName?.split(" · ")[0];
   const quiz = $("quiz");
   $("beginnerGuideStep").textContent = `新手导览 ${state.guideStep + 1} / ${beginnerGuideSteps.length}`;
-  $("beginnerGuideTitle").textContent = step.title;
-  $("beginnerGuideText").textContent = step.text;
+  $("beginnerGuideTitle").textContent = state.guideStep === 0 && tutorialTitle
+    ? `本课：${tutorialTitle}`
+    : step.title;
+  $("beginnerGuideText").textContent = state.guideStep === 0 && tutorialName
+    ? `本局从 34 个新手种子中抽到「${tutorialName}」。${step.text}`
+    : step.text;
   const dynamicFocus = state.guideStep === 0 && source
-    ? `整副 ${source.totalTiles || 108} 张；牌墙剩余 ${source.initialWallCount || source.wallRemaining || 55} 张。`
+    ? `${tutorialName ? `本课目标：${tutorialName}；` : ""}整副 ${source.totalTiles || 108} 张；牌墙剩余 ${source.initialWallCount || source.wallRemaining || 55} 张。`
     : step.focus;
   $("beginnerGuideFocus").textContent = dynamicFocus;
   document.querySelector(".guide-dots").innerHTML = beginnerGuideSteps
@@ -465,7 +477,7 @@ function show(screenId) {
 function renderMissingSuit(observation) {
   state.missingGame = observation;
   const mode = modeFor(observation);
-  $("missingModeKicker").textContent = `${mode.label} · 血战到底`;
+  $("missingModeKicker").textContent = `${tutorialModeLabel(observation, mode)} · 血战到底`;
   $("missingWall").textContent = observation.wallRemaining;
   const tutorial = Boolean(mode.tutorialEnabled);
   $("openingDanmaku").classList.toggle("hidden", !tutorial);
@@ -480,6 +492,8 @@ function renderMissingSuit(observation) {
     $("openingDanmaku").querySelector("b").textContent = headline;
     $("openingDanmaku").querySelector("em").textContent =
       `整副 ${observation.totalTiles || 108} 张 · 你 ${observation.initialHandCount || 14} 张 · 其他三家各 13 张`;
+    $("missingStartEyebrow").textContent =
+      `本课目标：${observation.tutorialName || "新手教学"} · 你的暗手 ${observation.initialHandCount || 14} 张`;
   }
   const hand = sortedTiles(observation.hand);
   const counts = {};
@@ -753,7 +767,7 @@ function renderQuestion() {
   $("progressTitle").textContent = state.dynamic
     ? `本局第 ${task.turn || 1} 手`
     : `本局关键手 ${state.index + 1} / ${state.tasks.length}`;
-  $("gameModeKicker").textContent = `${mode.label} · 血战到底`;
+  $("gameModeKicker").textContent = `${tutorialModeLabel(task, mode)} · 血战到底`;
   $("quiz").classList.toggle("tutorial-live", tutorial);
   $("guideReopen").classList.toggle("hidden", !tutorial);
   const showOpeningMarquee = tutorial
@@ -1323,7 +1337,7 @@ function finishDynamicGame(observation) {
   $("doneKicker").textContent = tutorial ? "本局结算 · 教学" : "本局结算";
   $("doneTitle").textContent = "本局打完了";
   $("doneText").textContent = tutorial
-    ? `本局教学完成，共出牌 ${decisionsThisGame} 次。本次练习不计入正式采集，下一局会重新计数。`
+    ? `本课「${observation.tutorialName || "新手教学"}」完成，共出牌 ${decisionsThisGame} 次。本次练习不计入正式采集，下一局会重新计数。`
     : collectionEligible
       ? `本局已单独保存，共出牌 ${decisionsThisGame} 次；下一局会重新计数，不累计到本页。`
       : `本局共出牌 ${decisionsThisGame} 次。本模式不计入正式采集，下一局会重新计数。`;
@@ -1340,7 +1354,7 @@ function finishDynamicGame(observation) {
     ${tutorial ? `
       <div class="tutorial-reward" style="grid-column:1/-1">
         <span>本局学会</span>
-        <b>庄家先手 · 定缺 · 摸打 · 碰杠胡</b>
+        <b>${observation.tutorialName || "新手教学"} · 庄家先手 · 定缺 · 摸打 · 碰杠胡</b>
       </div>
     ` : ""}
   `;
